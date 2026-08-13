@@ -425,6 +425,8 @@
       const panel = document.getElementById('controlsPanel');
       const btn   = document.getElementById('toggleFiltersBtn');
 
+      if (!panel) return;
+
       // 1) Áp trạng thái đã lưu (mặc định mở nếu chưa có key)
       const saved = localStorage.getItem('pivot_controls_open');
       const wantOpen = (saved !== '0');
@@ -1129,6 +1131,4 @@
   </script>
 </body>
 </html>
-
-
 

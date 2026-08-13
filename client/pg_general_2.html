@@ -561,7 +561,7 @@
       const closeMob = document.getElementById('closeSidebar');
 
       // Desktop toggle
-      if (toggleDesk) {
+      if (toggleDesk && shell) {
         toggleDesk.addEventListener('click', () => {
           shell.classList.toggle('is-collapsed');
         });
@@ -569,12 +569,14 @@
 
       // Mobile toggles
       function openMobileSidebar() {
+        if (!sidebar || !backdrop) return;
         sidebar.classList.add('is-open');
         backdrop.classList.add('is-active');
         document.body.style.overflow = 'hidden'; // Prevent background scroll
       }
 
       function closeMobileSidebar() {
+        if (!sidebar || !backdrop) return;
         sidebar.classList.remove('is-open');
         backdrop.classList.remove('is-active');
         document.body.style.overflow = '';
