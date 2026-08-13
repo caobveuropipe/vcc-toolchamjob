@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QUẢN LÝ KHUNG CƠ CHẾ - UX/UI FINAL</title>
+    <style>
+        /* ---------------------------------------------------- */
+        /* CSS VARIABLES & GLOBALS */
+        /* ---------------------------------------------------- */
+        :root {
+            --primary-color: #1976D2;
+            /* Blue Material */
+            --success-color: #28A745;
+            /* Green */
+            --danger-color: #DC3545;
+            /* Red */
+            --secondary-bg: #F4F6F9;
+            /* Off-White Background */
+            --light-bg: #FFFFFF;
+            /* Modal Header/Content Background */
+            --text-color: #343A40;
+            /* Dark Grey Text */
+            --border-color: #E9ECEF;
+            --modal-radius: 16px;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-10px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-color);
+        }
+
+        /* ---------------------------------------------------- */
+        /* MODAL STRUCTURE - ẨN MẶC ĐỊNH */
+        /* ---------------------------------------------------- */
+        /* Sử dụng class 'modal' và 'fade' của Bootstrap */
+        #khungCoCheModal .modal-dialog {
+            max-width: 95%;
+            width: 95%;
+            margin: 1vh auto;
+            /* Căn chỉnh lại margin để tận dụng không gian */
+        }
+
+        #khungCoCheModal .modal-content {
+            border-radius: var(--modal-radius);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15), 0 0 10px rgba(0, 0, 0, 0.05);
+            height: 98vh;
+            max-height: 980px;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--light-bg);
+            border: none;
+        }
+
+        /* ---------------------------------------------------- */
+        /* HEADER & CONTROLS */
+        /* ---------------------------------------------------- */
+        .modal-header {
+            background-color: var(--light-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 15px 25px 10px 25px;
+        }
+
+        .modal-header .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .modal-header .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* Khu vực Tạo Khung Mới */
+        #createKhungContainer {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: var(--secondary-bg);
+            border-radius: 12px;
+            animation: slideDown 0.3s ease-out;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+            /* Đảm bảo style display: none được áp dụng ban đầu trong HTML */
+        }
+
+        /* ---------------------------------------------------- */
+        /* TABS & BODY */
+        /* ---------------------------------------------------- */
+        .modal-body {
+            flex-grow: 1;
+            padding: 0;
+            overflow-y: auto;
+            background-color: var(--secondary-bg);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tabcontent {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px 25px;
+        }
+
+        .tabs {
+            background-color: var(--light-bg);
+            padding: 0 25px;
+            display: flex;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .tablink {
+            padding: 12px 18px;
+            color: #6C757D;
+            transition: all 0.3s;
+            position: relative;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+        }
+
+        /* ---------------------------------------------------- */
+        /* TỐI ƯU HÓA TAB UPLOAD */
+        /* ---------------------------------------------------- */
+        #tabUploadKhung .upload-controls {
+            padding: 15px;
+            border-radius: 12px;
+            background-color: var(--light-bg);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            margin-bottom: 20px;
+
+            /* SỬ DỤNG FLEXBOX CHO 1 DÒNG */
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            /* Giảm khoảng cách giữa các phần tử */
+        }
+
+        /* Đảm bảo Input File chiếm không gian vừa đủ */
+        #fileUploadTab_Khung {
+            max-width: 300px;
+            /* Giới hạn chiều rộng cho input file */
+            flex-shrink: 0;
+            /* Không co lại quá mức */
+        }
+
+        /* Đảm bảo Nút Tải Mẫu nằm ở cuối cùng */
+        #tabUploadKhung .upload-controls .ms-auto {
+            margin-left: auto !important;
+        }
+
+        /* Các nút còn lại nên linh hoạt, nhưng không quá nhỏ */
+        #uploadKhung_tab,
+        #importKhung_tab {
+            flex-shrink: 0;
+        }
+
+        /* Responsive cho thiết bị nhỏ */
+        @media (max-width: 768px) {
+            #tabUploadKhung .upload-controls {
+                flex-wrap: wrap;
+                /* Cho phép xuống dòng nếu không đủ chỗ */
+                justify-content: center;
+            }
+
+            #fileUploadTab_Khung {
+                width: 100%;
+                /* Chiếm toàn bộ chiều rộng khi xuống dòng */
+                max-width: none;
+                order: 1;
+                /* Đặt input file lên hàng đầu */
+            }
+
+            #tabUploadKhung .upload-controls .ms-auto {
+                margin-left: 0 !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <button onclick="openKhungCoCheModal()" class="btn btn-lg btn-success" style="margin: 50px; display: none;">
+        <i class="fa-solid fa-gear"></i> MỞ MODAL QUẢN LÝ KHUNG
+    </button>
+
+    <div class="modal fade" id="khungCoCheModal" tabindex="-1" aria-labelledby="khungCoCheModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-xl" role="document">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    <div class="container-fluid p-0">
+                        <div class="header-top">
+                            <h5 class="m-0" id="khungCoCheModalLabel"
+                                style="color: white; font-weight: 700;">QUẢN LÝ KHUNG CƠ CHẾ</h5>
+                            <button type="button" class="btn-close" aria-label="Close" onclick="modal_khung_3_Reset();"
+                                title="Đóng form">
+                            </button>
+                        </div>
+
+                        <div class="header-controls">
+                            <select id="modal_khung_2_khungCoChe_DropList" class="form-select form-select-sm"
+                                title="Chọn cơ chế">
+                                <option value="" disabled selected>Chọn cơ chế</option>
+                            </select>
+
+                            <button id="reloadKhung" class="btn btn-primary btn-sm flex-shrink-0"
+                                onclick="modal_khung_3_Reload()" title="Tải lại danh sách tên cơ chế">
+                                <i class="fa-solid fa-rotate"></i> Tải lại
+                            </button>
+
+                            <button id="viewKhung" class="btn btn-primary btn-sm flex-shrink-0"
+                                onclick="modal_khung_3_ViewKhung()" title="Xem chi tiết khung cơ chế đã chọn">
+                                <i class="fa-solid fa-eye"></i> Xem Khung
+                            </button>
+
+                            <input type="text" id="addKhung_name" class="form-control form-control-sm flex-grow-1"
+                                placeholder="Nhập tên khung mới (VD: Job-T9-2025)"
+                                style="max-width: 250px; display: none;">
+
+                            <select id="addKhung_type" class="form-select form-select-sm text-center flex-shrink-0"
+                                title="Chọn loại cơ chế" style="width: 150px; display: none;">
+                                <option value="" disabled selected>Chọn loại</option>
+                                <option value="Chấm job">Chấm job</option>
+                                <option value="OKR">OKR</option>
+                                <option value="Nhuận">Nhuận</option>
+                                <option value="Chỉ tiêu DS">Chỉ tiêu DS</option>
+                                <option value="Thưởng dự án">Thưởng dự án</option>
+                            </select>
+
+                            <button id="taoKhung" class="btn btn-primary btn-sm flex-shrink-0"
+                                onclick="modal_khung_3_TaoKhungMoi()" title="Xác nhận tạo khung cơ chế mới"
+                                style="display: none;">
+                                Tạo
+                            </button>
+
+                            <button id="addKhung" class="btn btn-success btn-sm flex-shrink-0 ms-3"
+                                onclick="modal_khung_3_showInputAndButton()" title="Mở khu vực tạo khung cơ chế mới">
+                                <i class="fa-solid fa-plus"></i> Tạo mới
+                            </button>
+
+                            <button class="btn btn-info btn-sm flex-shrink-0" id="modal_khung_2_upload_HS"
+                                data-bs-toggle="modal" data-bs-target="#uploadHieuSuat_Modal"
+                                title="Chuyển đến form Upload dữ liệu hiệu suất"
+                                onclick="modal_UpDataChiTiet_3_showModal_FrKhung();">
+                                <i class="fas fa-arrow-right"></i> Đến Upload HS
+                            </button>
+                        </div>
+                        <input type="text" class="form-control" placeholder="new" id="modal_khung_2_status"
+                            name="modal_khung_2_status" style="display: none;" value="new">
+                    </div>
+                </div>
+
+                <div class="modal-body">
+                    <div class="tabs">
+                        <button class="tablink active" onclick="openTab(event, 'tabKhungCoChe')">1. Khung Mô Tả</button>
+                        <button class="tablink" onclick="openTab(event, 'tabDonGia')">2. Khung Đơn Giá</button>
+                        <button class="tablink" onclick="openTab(event, 'tabUploadKhung')">3. Upload & Import</button>
+
+                        <button
+                            onclick="window.open('https://script.google.com/macros/s/AKfycbwYTSWugIYKHM5Ib5HgG0_P1QlzIXUzD2nR3crLb8W4WDF3qLfgxrzfjt1jTUjGVkYAAQ/exec', '_blank')"
+                            class="btn btn-secondary btn-sm flex-shrink-0" title="Chuyển khung ngang thành dọc"
+                            style="margin-left: auto;">
+                            <i class="fa-solid fa-arrow-right-arrow-left"></i> Convert Khung
+                        </button>
+                    </div>
+
+                    <div id="tabKhungCoChe" class="tabcontent active" style="display: block;">
+                        <div id="khungCoChe_tabMoTa">
+                            <p class="text-secondary text-center mt-5 p-5 bg-light rounded shadow-sm">
+                                <i class="fa-solid fa-circle-info me-2"></i> Dữ liệu Khung Mô Tả sẽ hiển thị ở đây. Vui
+                                lòng **Chọn cơ chế** và nhấn **Xem Khung**.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div id="tabDonGia" class="tabcontent" style="display: none;">
+                        <div id="khungCoChe_tabDonGia">
+                            <p class="text-secondary text-center mt-5 p-5 bg-light rounded shadow-sm">
+                                <i class="fa-solid fa-circle-info me-2"></i> Dữ liệu Khung Đơn Giá sẽ hiển thị ở đây.
+                                Vui lòng **Chọn cơ chế** và nhấn **Xem Khung**.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div id="tabUploadKhung" class="tabcontent" style="display: none;">
+                        <div class="upload-controls">
+                            <span style="font-weight: 600;">File Excel:</span>
+                            <input type="file" id="fileUploadTab_Khung" class="form-control form-control-sm" />
+
+                            <button id="uploadKhung_tab" class="btn btn-primary btn-sm" onclick="modal_khung_3_Upload()"
+                                title="Chế độ xem trước dữ liệu từ file Excel"><i class="fas fa-cloud-upload-alt"></i>
+                                Load</button>
+
+                            <button id="importKhung_tab" class="btn btn-success btn-sm"
+                                onclick="modal_khung_3_ImportDataTab()"
+                                title="Lưu dữ liệu khung đã Load vào hệ thống"><i class="fas fa-save"></i> Lưu</button>
+
+                            <a type="button"
+                                href="https://docs.google.com/spreadsheets/d/1MGyoq6MnyS1eX63D8GOO3FjRMfsDdnSpFKTLDhmDoR8/export?format=xlsx"
+                                class="btn btn-success btn-sm ms-auto" title="Tải mẫu upload khung cơ chế">
+                                <i class="fas fa-cloud-download-alt"></i> Tải mẫu
+                            </a>
+                        </div>
+                        <div id="dvExcel_KhungTab" class="mt-4 bg-light p-3 rounded shadow-sm">
+                            <p class="text-secondary text-center">
+                                <i class="fa-solid fa-table me-2"></i> Khu vực hiển thị bảng dữ liệu Excel sau khi Load.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer" style="border-top: none; display: none;"></div>
+            </div>
+        </div>
+    </div>
+    <script>
+        // Hàm mở Modal (Cần thiết vì modal được ẩn mặc định)
+        function openKhungCoCheModal() {
+            $('#khungCoCheModal').modal('show');
+        }
+
+        /*function openTab(evt, tabName) {
+            var i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tabcontent");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            tablinks = document.getElementsByClassName("tablink");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].classList.remove("active");
+            }
+            document.getElementById(tabName).style.display = "block";
+
+            if (evt) {
+                evt.currentTarget.classList.add("active");
+            } else {
+                var tabButton = document.querySelector(`.tablink[onclick*="${tabName}"]`);
+                if (tabButton) {
+                    tabButton.classList.add("active");
+                }
+            }
+        }
+        
+        // Cải tiến hàm show/hide để chỉ điều khiển CONTAINER và NÚT
+        /*function modal_khung_3_showInputAndButton() {
+            const container = document.getElementById('createKhungContainer');
+            const addKhungBtn = document.getElementById('addKhung');
+
+            const isHidden = container.style.display === 'none' || container.style.display === '';
+
+            if (isHidden) {
+                container.style.display = 'flex'; // Hiển thị khu vực input/button
+
+                // Cập nhật nút "Tạo mới" thành "Hủy"
+                addKhungBtn.innerHTML = '<i class="fa-solid fa-xmark"></i> Hủy';
+                addKhungBtn.classList.remove('btn-success');
+                addKhungBtn.classList.add('btn-danger');
+                
+                // Thông báo cho người dùng
+                alert("Hãy nhập tên khung cần tạo và bấm nút Tạo");
+            } else {
+                modal_khung_3_hideInputAndButton(); 
+            }
+        }
+
+        // Hàm ẩn khu vực tạo mới (chắc chắn ẩn)
+        /*function modal_khung_3_hideInputAndButton() {
+            const container = document.getElementById('createKhungContainer');
+            const addKhungBtn = document.getElementById('addKhung');
+            
+            container.style.display = 'none'; // Ẩn khu vực input/button
+
+            // Cập nhật nút "Hủy" thành "Tạo mới"
+            addKhungBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Tạo mới';
+            addKhungBtn.classList.remove('btn-danger');
+            addKhungBtn.classList.add('btn-success');
+        }
+
+        // Sửa hàm resetTabs để dùng logic đóng Modal Bootstrap và reset giao diện
+        /*function modal_khung_3_resetTabs() {
+            // Ẩn tất cả nội dung tab và xóa nội dung
+            document.querySelectorAll(".tabcontent").forEach(tab => {
+                tab.style.display = "none";
+                // Reset nội dung về placeholder
+                if (tab.id === "tabKhungCoChe") document.getElementById("khungCoChe_tabMoTa").innerHTML = '<p class="text-secondary text-center mt-5 p-5 bg-light rounded shadow-sm"><i class="fa-solid fa-circle-info me-2"></i> Dữ liệu Khung Mô Tả sẽ hiển thị ở đây. Vui lòng **Chọn cơ chế** và nhấn **Xem Khung**.</p>';
+                if (tab.id === "tabDonGia") document.getElementById("khungCoChe_tabDonGia").innerHTML = '<p class="text-secondary text-center mt-5 p-5 bg-light rounded shadow-sm"><i class="fa-solid fa-circle-info me-2"></i> Dữ liệu Khung Đơn Giá sẽ hiển thị ở đây. Vui lòng **Chọn cơ chế** và nhấn **Xem Khung**.</p>';
+                if (tab.id === "tabUploadKhung") document.getElementById("dvExcel_KhungTab").innerHTML = '<p class="text-secondary text-center"><i class="fa-solid fa-table me-2"></i> Khu vực hiển thị bảng dữ liệu Excel sau khi Load.</p>';
+            });
+
+            // Reset input file và status
+            document.getElementById("fileUploadTab_Khung").value = "";
+            document.getElementById("modal_khung_2_status").value = "new";
+            
+            // Reset dropdown về giá trị mặc định (Sử dụng Select2)
+            $("#modal_khung_2_khungCoChe_DropList").val('').trigger('change');
+
+            // Đặt lại trạng thái active cho tab đầu tiên
+            document.querySelectorAll(".tablink").forEach(tab => {
+                tab.classList.remove("active");
+            });
+            modal_khung_3_hideInputAndButton(); // Ẩn khu vực tạo mới
+
+            // Hiển thị tab mặc định (tab đầu tiên) và active nó
+            document.getElementById("tabKhungCoChe").style.display = "block";
+            document.querySelector(".tablink").classList.add("active");
+            
+            // Đóng Modal bằng hàm của Bootstrap/jQuery
+            $('#khungCoCheModal').modal('hide'); 
+        }
+
+        // Hàm Reset chính (Có xử lý Swal)
+        /*function modal_khung_3_Reset() {
+            const statusElement = document.getElementById('modal_khung_2_status');
+
+            if (!statusElement) return;
+
+            if (statusElement.value === "non-save") {
+                const backdrop = document.querySelector(".modal-backdrop");
+                if(backdrop) backdrop.style.zIndex = "1000";
+
+                Swal.fire({
+                    title: "Bạn có chắc muốn đóng màn hình upload khung?",
+                    text: "Dữ liệu chưa được lưu, bạn có muốn tiếp tục?",
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonText: "Tiếp tục đóng!",
+                    cancelButtonText: "Ở lại màn hình này"
+                }).then((result) => {
+                    const backdrop = document.querySelector(".modal-backdrop");
+                    if(backdrop) backdrop.style.zIndex = ""; 
+                    
+                    if (result.isConfirmed) {
+                        modal_khung_3_resetTabs();
+                    } 
+                });
+            } else {
+                modal_khung_3_resetTabs();
+            }
+        }*/
+
+        // Khởi tạo Select2 và Modal
+        $(document).ready(function () {
+            // Khởi tạo Modal (dùng để xử lý việc mở/đóng bằng JS)
+            $('#khungCoCheModal').modal({ show: false });
+
+            $("#modal_khung_2_khungCoChe_DropList, #addKhung_type").each(function () {
+                $(this).select2({
+                    theme: "bootstrap-5",
+                    allowClear: true,
+                    width: 'style',
+                    placeholder: $(this).attr("title"),
+                    dropdownParent: $("#khungCoCheModal"),
+                }).on("select2:clear", function () {
+                    $(this).val("").trigger("change");
+                });
+            });
+        });
+
+        // ----------------------------------------------------
+        // Các hàm JS gốc cần thiết khác (chỉ là placeholder)
+
+
+        function modal_UpDataChiTiet_3_showModal_FrKhung() { console.log("Opening Upload HS Modal..."); }
+
+        const addKhungBtn = document.getElementById('addKhung');
+        const createKhungContainer = document.getElementById('createKhungContainer');
+
+        // 1. Logic khi khu vực tạo mới HIỆN ra (Show)
+        createKhungContainer.addEventListener('show.bs.collapse', function () {
+            // Đổi nút thành Hủy
+            addKhungBtn.innerHTML = '<i class="fa-solid fa-xmark"></i> Hủy';
+            addKhungBtn.classList.remove('btn-success');
+            addKhungBtn.classList.add('btn-danger');
+            alert("Hãy nhập tên khung cần tạo và bấm nút Tạo");
+        });
+
+        // 2. Logic khi khu vực tạo mới ẨN đi (Hide)
+        createKhungContainer.addEventListener('hide.bs.collapse', function () {
+            // Đổi nút thành Tạo mới
+            addKhungBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Tạo mới';
+            addKhungBtn.classList.remove('btn-danger');
+            addKhungBtn.classList.add('btn-success');
+        });
+
+
+
+    </script>
+</body>
+
+</html>

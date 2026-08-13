@@ -1,0 +1,1398 @@
+<script>
+  // Biến global theo dõi trạng thái đã tính toán chưa
+  var pg_tonghophieusuat_isCalculated = false;
+
+
+  /**ĐOẠN CODE TẠO DROPLIST */
+  $(document).ready(function () {
+    $("#modal_tonghophieusuat_2_thangChiTra_DropList, #modal_tonghophieusuat_2_loaiThuNhap_DropList, #modal_tonghophieusuat_2_kyNghiemThu_DropList, #modal_tonghophieusuat_2_loaiToTrinh").select2({
+      theme: "bootstrap-5",
+      allowClear: true,
+      placeholder: function () {
+        return $(this).attr("title");
+      },
+      // Gắn menu ra ngoài toolbar có overflow-x để không bị header cắt.
+      dropdownParent: $("#tongHopHieuSuat_Modal"),
+    });
+
+    // Trigger đồng bộ lần đầu (nếu đã có option sẵn)
+    $("#modal_tonghophieusuat_2_thangChiTra_DropList, #modal_tonghophieusuat_2_kyNghiemThu_DropList, #modal_tonghophieusuat_2_loaiToTrinh").trigger("change");
+
+    // Tự động tính toán khi thay đổi Kỳ nghiệm thu
+    $("#modal_tonghophieusuat_2_kyNghiemThu_DropList").on("change", function () {
+      if ($(this).val()) {
+        pg_general_3_GetDataTongHop();
+      }
+    });
+  });
+  function modal_tonghophieusuat_3_updateToTrinhFromSelections() {
+    const $thangChiTra = $("#modal_tonghophieusuat_2_thangChiTra_DropList");
+    const $kyNghiemThu = $("#modal_tonghophieusuat_2_kyNghiemThu_DropList");
+    const $toTrinh = $("#modal_tonghophieusuat_2_loaiToTrinh");
+
+    const kyLuongText = $thangChiTra.find("option:selected").text()?.trim();
+    const kyNghiemThuText = $kyNghiemThu.find("option:selected").text()?.trim();
+    const toTrinhText = $toTrinh.find("option:selected").text()?.trim();
+
+    const kyLuongDisplay = kyLuongText || ($thangChiTra.attr("title") || "");
+    const kyNghiemThuDisplay = kyNghiemThuText || ($kyNghiemThu.attr("title") || "");
+    const toTrinhDisplay = toTrinhText || ($toTrinh.attr("title") || "");
+
+    $("#kyLuong").text(kyLuongDisplay);
+    $("#thoiGianNghiemThu").text(kyNghiemThuDisplay);
+    $("#loaiToTrinh").text(toTrinhDisplay);
+  }
+  // Gắn handler change dùng chung
+  $("#modal_tonghophieusuat_2_thangChiTra_DropList, #modal_tonghophieusuat_2_kyNghiemThu_DropList, #modal_tonghophieusuat_2_loaiToTrinh")
+    .on("change", modal_tonghophieusuat_3_updateToTrinhFromSelections);
+
+
+  function modal_tonghophieusuat_3_taoDropDown_ThangChiTra() {
+    // Gọi hàm Apps Script để lấy danh sách dropdown
+    google.script.run.withSuccessHandler(dropDown_ThangChiTra).getDropdownList("Master!B2:B");
+  }
+  function dropDown_ThangChiTra(values) {
+    populateDropdown("modal_tonghophieusuat_2_thangChiTra_DropList", values);
+    // Đồng bộ ngay khi nạp xong
+    $("#modal_tonghophieusuat_2_thangChiTra_DropList").trigger("change");
+  }
+  function modal_tonghophieusuat_3_taoDropDown_KyNghiemThu() {
+    //console.log("Loading KyNghiemThu from main screen...");
+
+    // Lấy giá trị từ dropdown màn hình chính
+    const tuThang = document.getElementById('tuThang_DropList')?.value || "";
+    const denThang = document.getElementById('denThang_DropList')?.value || "";
+
+    //console.log("Từ tháng:", tuThang, "Đến tháng:", denThang);
+
+    // Nếu CẢ HAI đều chưa chọn, không có gì để hiển thị
+    if (!tuThang && !denThang) {
+      console.warn("Chưa chọn Từ tháng và Đến tháng trên màn hình chính");
+      populateDropdown("modal_tonghophieusuat_2_kyNghiemThu_DropList", []);
+      return;
+    }
+
+    // Sử dụng getMonthsInRange để tạo danh sách tháng
+    const monthsString = getMonthsInRange(tuThang, denThang);
+    //console.log("Months string:", monthsString);
+
+    // Chuyển từ string "T1.2025;T2.2025;T3.2025" thành array ["T1.2025", "T2.2025", "T3.2025"]
+    const monthsArray = monthsString ? monthsString.split(';') : [];
+    //console.log("Months array:", monthsArray);
+
+    // Populate dropdown
+    populateDropdown("modal_tonghophieusuat_2_kyNghiemThu_DropList", monthsArray);
+
+    // Đồng bộ ngay khi nạp xong
+    $("#modal_tonghophieusuat_2_kyNghiemThu_DropList").trigger("change");
+  }
+
+  /**NHÓM HÀM GHI HIỆU SUẤT VÀO DATA*/
+  // Helper: lấy value an toàn; trả về null nếu không tìm thấy element
+  function getInputValueOrNull(id) {
+    const el = document.getElementById(id);
+    return el ? (el.value ?? '') : null;
+  }
+
+  function modal_tonghophieusuat_3_LuuChiTra() {
+    // Hiển thị spinner khi bắt đầu
+    $('#spinnerModal').modal('show');
+    try {
+      // Kiểm tra sự tồn tại của các input bắt buộc
+      const idsRequired = [
+        'modal_tonghophieusuat_2_thangChiTra_DropList',
+        'coChe_DropList',
+        'tongHopHieuSuat_GhiChu',
+        'modal_tonghophieusuat_2_loaiThuNhap_DropList'
+      ];
+
+      const missing = idsRequired.filter(id => document.getElementById(id) == null);
+      if (missing.length) {
+        $('#spinnerModal').modal('hide');
+        console.error('Thiếu phần tử DOM:', missing);
+        pg_general_3_showToast('Không tìm thấy các trường bắt buộc: ' + missing.join(', ') + '. Vui lòng kiểm tra ID hoặc ngữ cảnh hiển thị.', "warning");
+        return;
+      }
+
+      // Lấy giá trị (sau khi đã chắc chắn tồn tại)
+      const strThangChiTra = getInputValueOrNull('modal_tonghophieusuat_2_thangChiTra_DropList');
+      const strCoChe = getInputValueOrNull('coChe_DropList');
+      const strGhiCHu = getInputValueOrNull('tongHopHieuSuat_GhiChu');
+      const strLoaiTN = getInputValueOrNull('modal_tonghophieusuat_2_loaiThuNhap_DropList');
+      const userEmail = "{{userEmail}}"; // server render
+
+      // Validate cơ bản
+      if (!strThangChiTra) {
+        $('#spinnerModal').modal('hide');
+        pg_general_3_showToast("Vui lòng chọn tháng chi trả.", "warning");
+        return;
+      }
+
+      // Lấy dữ liệu chỉ các dòng đang được check (theo hàm bạn đã cập nhật)
+      const data = modal_dataluong_3_getDataFromTable();
+      if (!Array.isArray(data) || data.length === 0) {
+        $('#spinnerModal').modal('hide');
+        pg_general_3_showToast("Vui lòng chọn ít nhất một dòng.", "warning");
+        return;
+      }
+
+      // Gửi về Apps Script
+      if (!google || !google.script || !google.script.run) {
+        $('#spinnerModal').modal('hide');
+        console.warn('google.script.run không khả dụng trong môi trường hiện tại (có thể đang test local).');
+        pg_general_3_showToast('Môi trường không có google.script.run. Xem console để kiểm tra payload.', "warning");
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(function (response) {
+          $('#spinnerModal').modal('hide');
+          // Reset flag khi lưu thành công
+          pg_tonghophieusuat_isCalculated = false;
+          pg_general_3_showToast("Dữ liệu đã được ghi vào Data", "success");
+        })
+        .withFailureHandler(function (err) {
+          $('#spinnerModal').modal('hide');
+          console.error('Gửi dữ liệu thất bại:', err);
+          pg_general_3_showToast('Có lỗi khi gửi dữ liệu: ' + (err && err.message ? err.message : err), "error");
+        })
+        .modal_tonghophieusuat_1_SubmitHieuSuatToSheet(data, strCoChe, strThangChiTra);
+
+    } catch (e) {
+      $('#spinnerModal').modal('hide');
+      console.error(e);
+    }
+  }
+
+  // Hàm kiểm tra trạng thái unsaved (để dùng chung)
+  function modal_tonghophieusuat_hasUnsavedChanges() {
+    return pg_tonghophieusuat_isCalculated;
+  }
+
+  // Force close flag để tránh loop
+  var pg_tonghophieusuat_forceClose = false;
+
+  // Lắng nghe sự kiện đóng modal
+  $(document).ready(function () {
+    $('#tongHopHieuSuat_Modal').on('hide.bs.modal', function (e) {
+      if (pg_tonghophieusuat_forceClose) {
+        pg_tonghophieusuat_forceClose = false;
+        return;
+      }
+
+      if (modal_tonghophieusuat_hasUnsavedChanges()) {
+        e.preventDefault(); // Ngăn đóng modal
+
+        Swal.fire({
+          title: "Dữ liệu chưa được lưu!",
+          text: "Bạn đã thực hiện tính toán nhưng chưa Ghi Data. Bạn có chắc chắn muốn đóng?",
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonColor: "#3085d6",
+          cancelButtonColor: "#d33",
+          confirmButtonText: "Đóng luôn",
+          cancelButtonText: "Quay lại"
+        }).then((result) => {
+          if (result.isConfirmed) {
+            pg_tonghophieusuat_forceClose = true;
+            pg_tonghophieusuat_isCalculated = false; // Reset state
+            $('#tongHopHieuSuat_Modal').modal('hide');
+          }
+        });
+      }
+    });
+  });
+
+  // 🔧 Helper: chuẩn hoá số về ISO (không grouping), giữ 4 số TP nếu có phần thập phân
+  function normalizeNumberISO(value) {
+    if (value == null) return value;
+
+    const original = String(value).trim();
+    if (original === "") return original;
+
+    // Bỏ dấu phẩy ngăn cách nghìn (đang dùng en-US trên table)
+    const cleaned = original.replace(/,/g, '');
+
+    // Chỉ chấp nhận dạng số thuần: [-]digits[.digits]
+    const isPureNumber = /^-?\d+(?:\.\d+)?$/.test(cleaned);
+    if (!isPureNumber) return original;
+
+    // Xác định có phần thập phân không
+    const hasDecimal = cleaned.includes('.');
+
+    // Parse về số
+    const num = Number(cleaned);
+    if (!Number.isFinite(num)) return original;
+
+    // Nếu có thập phân: cắt/đệm đúng 4 chữ số; nếu không: trả về số nguyên
+    return hasDecimal ? num.toFixed(3) : String(num);
+  }
+  /**LẤY DỮ LIỆU TỪ BẢNG*/
+  function modal_dataluong_3_getDataFromTable() {
+    const table = $('#dataTableTongHopHieuSuat').DataTable();
+
+    // Chỉ lấy các hàng đang hiện (search: 'applied') và đã được check
+    const checkedNodes = $(table.rows({ search: 'applied' }).nodes())
+      .filter((_, tr) => $(tr).find('.row-checkbox').prop('checked'));
+
+    const skipCols = [0];    // Bỏ qua cột
+    const NUM_START_COL = 6;    // Chuẩn hoá số từ cột 9 trở đi
+
+    // Thời gian để sinh ID
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const MM = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+    const timeString = `${yyyy}${MM}${dd}${hh}${mm}${ss}`;
+
+    const allData = [];
+
+    // Nếu không có dòng nào được check → trả về mảng rỗng
+    if (checkedNodes.length === 0) {
+      return allData;
+    }
+
+    checkedNodes.each((i, tr) => {
+      const row = table.row(tr).data(); // Mảng dữ liệu của dòng (bao gồm ô checkbox ở cột 0)
+      let rowData = [];
+      let idValue = null;
+
+      for (let colIndex = 0; colIndex < row.length; colIndex++) {
+        // Cột ID ở ĐẦU TIÊN
+        if (colIndex === 0) {
+          let value = row[colIndex];
+          // kiểm tra “trống” chặt chẽ, tránh ghi đè giá trị 0 hợp lệ
+          //if (value == null || String(value).trim() === '') {
+          const formattedIndex = String(i).padStart(4, '0');
+          value = `${formattedIndex}ID${timeString}`;
+          //}
+          idValue = value;
+          continue;
+        }
+
+        // Bỏ qua cột nằm trong skipCols
+        if (skipCols.includes(colIndex)) continue;
+
+        // Lấy giá trị cột
+        let value = row[colIndex];
+
+        // Vì ID đã chiếm cột 0, các cột số dịch phải 1
+        const numStartCol = NUM_START_COL + 1;
+        if (colIndex >= numStartCol) {
+          value = normalizeNumberISO(value); // giữ nguyên chuẩn hoá số
+        }
+
+        // Đưa vào payload dữ liệu (không gồm cột ID và cột bị skip)
+        rowData.push(value);
+      }
+
+
+      if (!idValue) {
+        const formattedIndex = String(i).padStart(4, '0');
+        idValue = `${formattedIndex}ID${timeString}`;
+      }
+
+      rowData.unshift(idValue);
+
+      if (rowData.some(cell => cell !== "")) {
+        allData.push(rowData);
+      }
+    });
+    //console.log("All Data: ", allData)
+    return allData;
+  }
+
+
+  // Thêm event listener cho nút "Submit Expiry Date"
+  $('#submitExpiryDateButton').on('click', modal_tonghophieusuat_3_LuuChiTra);
+
+
+  /**NHÓM HÀM DÙNG CHUNG*/
+
+  function modal_tonghophieusuat_3_tab_onFailure(error) {
+    $('#spinnerModal').modal('hide');
+    //console.log('Error: ' + error.message);
+    pg_general_3_showToast('Error: ' + error.message, "error");
+  }
+
+  /**PHẦN TỔNG HỢP KẾT QUẢ*/
+
+  async function pg_general_3_GetDataTongHop() {
+    console.time("Execution Time"); // Bắt đầu đo thời gian
+
+    // Đánh dấu là đang có thay đổi chưa lưu (đã tính toán)
+    pg_tonghophieusuat_isCalculated = true;
+
+    document.getElementById('dataTableTongHopHieuSuat_container').innerHTML = "";
+
+    // Hủy DataTables nếu đã được khởi tạo
+    if ($.fn.DataTable.isDataTable('#dataTableTongHopHieuSuat')) {
+      $('#dataTableTongHopHieuSuat').DataTable().destroy();
+    }
+
+    const select = document.getElementById("modal_tonghophieusuat_2_kyNghiemThu_DropList");
+    const kyBaoCao = select ? select.value : "";
+
+    if (!kyBaoCao || kyBaoCao === "") {
+      Swal.fire("Lỗi", "⚠️ Bạn chưa chọn kỳ báo cáo.", "error");
+      return;
+    }
+
+    var sourceData = pg_general_3_cachedDataHieuSuat;
+    if (!Array.isArray(sourceData) || sourceData.length === 0) {
+      pg_general_3_showToast("Chưa có dữ liệu hiệu suất!", "warning");
+      return;
+    }
+
+    var header = sourceData[0]; // giả sử dòng đầu là header
+    var dataWithoutHeader = sourceData.slice(1);
+    var dataFiltered = dataWithoutHeader.filter(row => row[1] === kyBaoCao);
+    dataFiltered.unshift(header); // thêm lại header vào đầu mảng
+
+    var data = modal_tonghophieusuat_3_tongHopHieuSuat(dataFiltered);
+
+    // Tải danh sách lương snapshot theo đúng kỳ báo cáo (Task 2.5 & Task 2.1)
+    $('#spinnerModal').modal('show');
+    try {
+      var maNS_String = pg_general_3_cachedMNS || [];
+      var dataLuong = await pg_general_1_LayDanhSachLuong(maNS_String, kyBaoCao);
+
+      if (!Array.isArray(dataLuong)) {
+        pg_general_3_showToast("Dữ liệu lương chưa sẵn sàng hoặc không hợp lệ!", "warning");
+        return;
+      }
+
+      const mergedArray = mergeHieuSuatVaLuong(data, dataLuong);
+      pg_general_3_taoBangTongHop(mergedArray);
+    } catch (error) {
+      console.error("Lỗi khi tổng hợp hiệu suất và lương:", error);
+    } finally {
+      $('#spinnerModal').modal('hide');
+    }
+  }
+  /**Đoạn code tổng hợp hiệu suất*/
+  function modal_tonghophieusuat_3_tongHopHieuSuat(result) {
+
+    try {
+      if (!Array.isArray(result) || result.length === 0) {
+        console.error("❌ Dữ liệu đầu vào không hợp lệ!");
+        return [];
+      }
+
+      let summary = {}; // Lưu trữ dữ liệu tổng hợp
+      let allDoKho = new Set(); // Danh sách tất cả độ khó xuất hiện
+
+      // Skip dòng đầu tiên (header) và bắt đầu từ dòng thứ 2
+      result.forEach((row, index) => {
+        // Skip dòng đầu tiên (header)
+        if (index === 0) {
+          //console.log("Skipping header row:", row);
+          return;
+        }
+
+        if (!Array.isArray(row) || row.length < 21) {
+          console.warn("⚠️ Bỏ qua dòng không hợp lệ:", row);
+          return;
+        }
+
+        let kyNghiemThu = (row[1] ?? "Không xác định").toString().trim();
+        let khoi = (row[2] ?? "Không xác định").toString().trim();
+        let maNhanSu = (row[3] ?? "Không xác định").toString().trim();
+        let hoVaTen = (row[4] ?? "Không xác định").toString().trim();
+        let team = (row[5] ?? "Không xác định").toString().trim();
+        let doKho = (row[11] ?? "Không xác định").toString().trim();
+
+        // Xử lý dữ liệu hiệu suất
+        let hieuSuatRaw = row[20];
+
+        if (typeof hieuSuatRaw === "string") {
+          hieuSuatRaw = hieuSuatRaw.replace(/\./g, "").replace(",", ".");
+        }
+
+        let hieuSuat = parseFloat(hieuSuatRaw);
+        if (isNaN(hieuSuat)) {
+          console.warn(`⚠️ Lỗi chuyển đổi hiệu suất (Mã NS ${maNhanSu}):`, hieuSuatRaw, "=>", hieuSuat);
+          hieuSuat = 0;
+        }
+
+        // Thêm độ khó vào danh sách nếu chưa có
+        allDoKho.add(doKho);
+
+        // Nếu chưa có kỳ nghiệm thu, khởi tạo
+        if (!summary[kyNghiemThu]) {
+          summary[kyNghiemThu] = {};
+        }
+
+        // Nếu chưa có nhân sự trong kỳ, khởi tạo
+        if (!summary[kyNghiemThu][maNhanSu]) {
+          summary[kyNghiemThu][maNhanSu] = {
+            khoi: khoi,
+            team: team,
+            hoVaTen: hoVaTen,
+            tongHieuSuat: 0,
+            phanLoaiDoKho: {}
+          };
+        }
+
+        // Cộng dồn hiệu suất tổng
+        summary[kyNghiemThu][maNhanSu].tongHieuSuat += hieuSuat;
+
+        // Cộng dồn hiệu suất theo độ khó
+        if (!summary[kyNghiemThu][maNhanSu].phanLoaiDoKho[doKho]) {
+          summary[kyNghiemThu][maNhanSu].phanLoaiDoKho[doKho] = 0;
+        }
+        summary[kyNghiemThu][maNhanSu].phanLoaiDoKho[doKho] += hieuSuat;
+      });
+
+      let doKhoColumns = Array.from(allDoKho).sort(); // Sắp xếp độ khó để cột hiển thị đúng thứ tự
+
+      let output = [
+        ["KỲ NGHIỆM THU", "KHỐI", "TEAM", "MÃ NHÂN SỰ", "HỌ VÀ TÊN", "TỔNG HIỆU SUẤT"].concat(doKhoColumns)
+      ];
+
+      for (let kyNghiemThu in summary) {
+        for (let maNhanSu in summary[kyNghiemThu]) {
+          let nhanSu = summary[kyNghiemThu][maNhanSu];
+
+          let row = [
+            kyNghiemThu,
+            nhanSu.khoi,
+            nhanSu.team,
+            maNhanSu,
+            nhanSu.hoVaTen,
+            nhanSu.tongHieuSuat.toFixed(2) // Giữ 2 số thập phân
+          ];
+
+          doKhoColumns.forEach(doKho => {
+            row.push((nhanSu.phanLoaiDoKho[doKho] || 0).toFixed(2));
+          });
+
+          output.push(row);
+        }
+      }
+
+      return output;
+    } catch (error) {
+
+      return [];
+    } finally {
+      //console.log("ℹ️ Net state changed from BUSY to IDLE");
+
+    }
+  }
+
+  /**Đoạn code tạo bảng tổng hợp hiệu suất*/
+  function pg_general_3_taoBangTongHop_old(dataArray) {
+    if (!Array.isArray(dataArray) || dataArray.length === 0) {
+      console.error("Dữ liệu không hợp lệ!");
+      return;
+    }
+
+    // --- Chuẩn hóa data
+    const headers = dataArray[0];
+    const rows = dataArray.slice(2); // bỏ header + dòng lặp
+
+    // --- Cấu hình index (0-based) theo mảng headers
+    const PERCENT_COLS = new Set([9, 10, 12]);      // cột hiển thị dạng %
+    const SUM_COLS = new Set([5, 6, 7, 8, 11]); // cột cần cộng tổng
+    const TEXT_FORCE_COLS = new Set([3]);              // ví dụ: MÃ NHÂN SỰ -> text
+
+    const totalRow = new Array(headers.length).fill(0);
+
+    // --- HTML table
+    let tableHtml = `
+      <div id="dataTableTongHopHieuSuat_container" style="width:100%;">
+        <table class='table table-sm' id='dataTableTongHopHieuSuat' style="table-layout:auto; width:auto;">
+          <thead class="table-warning font-weight-bold">
+            <tr>
+              <th scope='col'><input type='checkbox' id='select-all'> Chọn</th>
+              ${headers.map(h => `<th scope='col'>${h}</th>`).join("")}
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map((row, rowIndex) => {
+      let tds = `<td><input type='checkbox' class='row-checkbox' data-row-index='${rowIndex}'></td>`;
+      headers.forEach((_, colIndex) => {
+        const raw = row[colIndex];
+        const val = (raw === undefined || raw === null) ? '' : raw;
+
+        // Cộng tổng ban đầu (toàn bộ dữ liệu) cho các cột cộng dồn
+        if (SUM_COLS.has(colIndex)) {
+          const n = Number(val);
+          if (Number.isFinite(n)) totalRow[colIndex] += n;
+        }
+
+        // Để DataTables tự render/format
+        tds += `<td>${val === '' ? '' : String(val)}</td>`;
+      });
+      return `<tr>${tds}</tr>`;
+    }).join("")}
+          </tbody>
+          <tfoot>
+            <tr class="table-warning font-weight-bold">
+              <td style="white-space: nowrap;"><strong>Tổng cộng</strong></td>
+              ${headers.map((_, colIndex) => {
+      if (SUM_COLS.has(colIndex)) {
+        const s = totalRow[colIndex];
+        return `<td style="white-space: nowrap; text-align:right;"><strong>${Number(s).toLocaleString('vi-VN')}</strong></td>`;
+      }
+      return `<td style="white-space: nowrap;"></td>`;
+    }).join("")}
+            </tr>
+          </tfoot>
+        </table>
+      </div>`;
+
+    // --- Gắn vào container có sẵn
+    const div = document.getElementById('dataTableTongHopHieuSuat_container');
+    if (!div) {
+      console.error("Không tìm thấy container");
+      return;
+    }
+    div.innerHTML = tableHtml;
+
+    // --- Checkbox chọn tất cả
+    $('#select-all').on('click', function () {
+      $('.row-checkbox').prop('checked', this.checked);
+    });
+
+    // --- DataTables
+    $(document).ready(function () {
+
+      // Hàm tính lại footer theo dữ liệu đang lọc/tìm kiếm
+      function recalcFooter(dtInstance) {
+        // Bảng có thêm 1 cột checkbox ở đầu:
+        //  - Index DataTables = 1 + index header
+        //  - Footer: ô 0 là "Tổng cộng", nên ô cần cập nhật cũng = 1 + index header
+        const $tfootCells = $('#dataTableTongHopHieuSuat tfoot tr').children('td');
+
+        const parseNumber = (v) => {
+          if (v == null || v === "") return 0;
+          const n = Number(String(v).replace(/[%\s,]/g, ''));
+          return Number.isFinite(n) ? n : 0;
+        };
+
+        SUM_COLS.forEach((headerColIdx) => {
+          const dtColIdx = 1 + headerColIdx;
+          const dataArr = dtInstance.column(dtColIdx, { filter: 'applied' }).data().toArray();
+          const sum = dataArr.reduce((acc, val) => acc + parseNumber(val), 0);
+          $tfootCells.eq(dtColIdx).html(`<strong>${sum.toLocaleString('vi-VN')}</strong>`);
+        });
+      }
+
+      const dt = $('#dataTableTongHopHieuSuat').DataTable({
+        responsive: false,
+        scrollX: true,
+        autoWidth: false,
+        stateSave: true,
+        paging: false,
+        ordering: headers.length >= 4,
+        order: headers.length >= 4 ? [[1, 'desc'], [2, 'desc'], [3, 'desc']] : [],
+        pageLength: 10,
+        lengthMenu: [[10, 25, 50, 100, -1], ['10', '25', '50', '100', 'Tất cả']],
+        language: {
+          lengthMenu: "_MENU_ ",
+          zeroRecords: "Không tìm thấy",
+          info: "Hiển thị _START_ đến _END_ trong _TOTAL_ dòng",
+          infoEmpty: "Không có dữ liệu",
+          search: '<i class="fas fa-search"></i>:',
+          paginate: { first: "Đầu", previous: "‹", next: "›", last: "Cuối" }
+        },
+        columnDefs: [
+          // Số có ngăn cách hàng nghìn (theo index DataTables: đã dịch +1)
+          {
+            targets: [6, 7, 8, 9, 12],
+            className: 'all center-align',
+            render: function (data, type) {
+              if (type === 'display' || type === 'filter') {
+                if (data == null || data === "") return "0";
+                const n = Number(String(data).replace(/,/g, ''));
+                return Number.isFinite(n) ? n.toLocaleString('vi-VN') : String(data);
+              }
+              if (type === 'sort' || type === 'type') {
+                const n = Number(String(data).replace(/,/g, ''));
+                return Number.isFinite(n) ? n : 0;
+              }
+              return data ?? "";
+            }
+          },
+          // Phần trăm (theo index DataTables: đã dịch +1)
+          {
+            targets: [10, 11, 13],
+            className: 'all center-align',
+            render: function (data, type) {
+              if (type === 'display' || type === 'filter') {
+                if (data == null || data === "") return "0%";
+                const v = Number(String(data).replace(/,/g, ''));
+                if (!Number.isFinite(v)) return "0%";
+                return (v * 100).toFixed(2) + "%";
+              }
+              if (type === 'sort' || type === 'type') {
+                const v = Number(String(data).replace(/,/g, ''));
+                return Number.isFinite(v) ? v : 0;
+              }
+              return data ?? "";
+            }
+          },
+          // Text/string
+          {
+            targets: [0, 1, 2, 3, 4, 5, 14],
+            className: 'center-align',
+            type: 'string',
+            render: function (data) {
+              return data ?? "";
+            }
+          }
+        ],
+        drawCallback: function () {
+          // Mỗi lần DataTables vẽ lại (search/filter/order) -> cập nhật footer
+          recalcFooter(this.api());
+        },
+        createdRow: function (row) {
+          $(row).css('table-layout', 'fixed');
+        }
+      });
+
+      // Cập nhật footer lần đầu
+      recalcFooter(dt);
+
+      dt.columns.adjust().draw();
+      setTimeout(() => $('#select-all').prop('checked', true).trigger('click'), 500);
+    });
+  }
+  function pg_general_3_taoBangTongHop(dataArray) {
+    if (!Array.isArray(dataArray) || dataArray.length === 0) {
+      console.error("Dữ liệu không hợp lệ!");
+      return;
+    }
+
+    // --- Chuẩn hóa data
+    const headers = dataArray[0];
+
+    // BỎ các hàng có ô đầu tiên là "Tổng cộng" (dòng tổng dư thừa trong nguồn)
+    const rows = dataArray
+      .slice(2) // bỏ header + dòng lặp
+      .filter(r => String(r?.[0] ?? '').trim().toLowerCase() !== 'tổng cộng');
+
+    // --- Cấu hình index (0-based) theo mảng headers
+    const PERCENT_COLS = new Set([9, 10, 12]);      // cột hiển thị dạng %
+    const SUM_COLS = new Set([5, 6, 7, 8, 11]); // cột cần cộng tổng
+    const TEXT_FORCE_COLS = new Set([3]);              // ví dụ: MÃ NHÂN SỰ -> text
+
+    // --- HTML table (KHÔNG có tfoot)
+    let tableHtml = `
+    <div id="dataTableTongHopHieuSuat_container" style="width:100%;">
+      <table class='table table-sm' id='dataTableTongHopHieuSuat' style="table-layout:auto; width:auto;">
+        <thead class="table-warning font-weight-bold">
+          <tr>
+            <th scope='col'><input type='checkbox' id='select-all'> Chọn</th>
+            ${headers.map(h => `<th scope='col'>${h}</th>`).join("")}
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((row, rowIndex) => {
+      let tds = `<td><input type='checkbox' class='row-checkbox' data-row-index='${rowIndex}'></td>`;
+      headers.forEach((_, colIndex) => {
+        const raw = row[colIndex];
+        const val = (raw === undefined || raw === null) ? '' : raw;
+        // Giữ raw để DataTables render (tránh double-format)
+        tds += `<td>${val === '' ? '' : String(val)}</td>`;
+      });
+      return `<tr>${tds}</tr>`;
+    }).join("")}
+          <!-- KHÔNG thêm dòng tổng ở đây. Sẽ được chèn ở drawCallback -->
+        </tbody>
+      </table>
+    </div>`;
+
+    // --- Gắn vào container có sẵn
+    const div = document.getElementById('dataTableTongHopHieuSuat_container');
+    if (!div) {
+      console.error("Không tìm thấy container");
+      return;
+    }
+    div.innerHTML = tableHtml;
+
+    // --- Checkbox chọn tất cả
+    $('#select-all').on('click', function () {
+      $('.row-checkbox').prop('checked', this.checked);
+    });
+
+    // --- DataTables
+    $(document).ready(function () {
+
+      // Hàm tính lại dòng tổng (dựa trên tập đã filter/search/order)
+      function recalcFooter(dtInstance) {
+        // Vì có 1 cột checkbox ở đầu:
+        //  - Index DataTables = 1 + index theo headers
+        const $cells = $('#dynamic-total-row').children('td');
+
+        const parseNumber = (v) => {
+          if (v == null || v === "") return 0;
+          const n = Number(String(v).replace(/[%\s,]/g, ''));
+          return Number.isFinite(n) ? n : 0;
+        };
+
+        // Clear trước (phòng khi thay đổi cấu trúc)
+        for (let i = 0; i < $cells.length; i++) $cells.eq(i).html('');
+
+        // Ô đầu tiên: nhãn
+        $cells.eq(0).html('<strong>Tổng cộng</strong>');
+
+        // Cộng dồn cho các cột cần tính tổng
+        SUM_COLS.forEach((headerColIdx) => {
+          const dtColIdx = 1 + headerColIdx; // dịch vì có cột checkbox
+          // Lấy dữ liệu cột theo filter hiện tại
+          const dataArr = dtInstance.column(dtColIdx, { filter: 'applied' }).data().toArray();
+          const sum = dataArr.reduce((acc, val) => acc + parseNumber(val), 0);
+          $cells.eq(dtColIdx).html(`<strong>${sum.toLocaleString('vi-VN')}</strong>`);
+        });
+      }
+
+      const dt = $('#dataTableTongHopHieuSuat').DataTable({
+        responsive: false,
+        scrollX: true,
+        autoWidth: false,
+        stateSave: true,
+        paging: false,
+        ordering: headers.length >= 4,
+        order: headers.length >= 4 ? [[1, 'desc'], [2, 'desc'], [3, 'desc']] : [],
+        pageLength: 10,
+        lengthMenu: [[10, 25, 50, 100, -1], ['10', '25', '50', '100', 'Tất cả']],
+        language: {
+          lengthMenu: "_MENU_ ",
+          zeroRecords: "Không tìm thấy",
+          info: "Hiển thị _START_ đến _END_ trong _TOTAL_ dòng",
+          infoEmpty: "Không có dữ liệu",
+          search: '<i class="fas fa-search"></i>:',
+          paginate: { first: "Đầu", previous: "‹", next: "›", last: "Cuối" }
+        },
+        columnDefs: [
+          // Số có ngăn cách hàng nghìn (theo index DataTables: đã dịch +1)
+          {
+            targets: [6, 7, 8, 9, 12],
+            className: 'all center-align',
+            render: function (data, type) {
+              if (type === 'display' || type === 'filter') {
+                if (data == null || data === "") return "0";
+                const n = Number(String(data).replace(/,/g, ''));
+                return Number.isFinite(n) ? n.toLocaleString('vi-VN') : String(data);
+              }
+              if (type === 'sort' || type === 'type') {
+                const n = Number(String(data).replace(/,/g, ''));
+                return Number.isFinite(n) ? n : 0;
+              }
+              return data ?? "";
+            }
+          },
+          // Phần trăm (theo index DataTables: đã dịch +1)
+          {
+            targets: [10, 11, 13],
+            className: 'all center-align',
+            render: function (data, type) {
+              if (type === 'display' || type === 'filter') {
+                if (data == null || data === "") return "0%";
+                const v = Number(String(data).replace(/,/g, ''));
+                if (!Number.isFinite(v)) return "0%";
+                return (v * 100).toFixed(2) + "%";
+              }
+              if (type === 'sort' || type === 'type') {
+                const v = Number(String(data).replace(/,/g, ''));
+                return Number.isFinite(v) ? v : 0;
+              }
+              return data ?? "";
+            }
+          },
+          // Text/string
+          {
+            targets: [0, 1, 2, 3, 4, 5, 14],
+            className: 'center-align',
+            type: 'string',
+            render: function (data) { return data ?? ""; }
+          }
+        ],
+        // Mỗi lần DataTables vẽ -> chèn lại dòng tổng vào cuối tbody & cập nhật số liệu
+        drawCallback: function () {
+          const api = this.api();
+          const $tbody = $(api.table().body());
+
+          // Loại bỏ nếu đã tồn tại (tránh nhân bản)
+          $('#dynamic-total-row', $tbody).remove();
+
+          // Tạo dòng tổng rỗng (số cột = 1 checkbox + headers.length)
+          const totalCellsHtml =
+            ['<td><strong>Tổng cộng</strong></td>']
+              .concat(headers.map(() => '<td></td>'))
+              .join('');
+
+          $tbody.append(`<tr id="dynamic-total-row" class="table-warning font-weight-bold">${totalCellsHtml}</tr>`);
+
+          // Tính và ghi số liệu
+          recalcFooter(api);
+        },
+        createdRow: function (row) {
+          $(row).css('table-layout', 'fixed');
+        }
+      });
+
+      dt.columns.adjust().draw();
+      setTimeout(() => $('#select-all').prop('checked', true).trigger('click'), 500);
+    });
+  }
+
+
+
+  // /js/datatables-number-formatters.js
+  // Giữ số 0 ở cuối phần thập phân & parse linh hoạt .,,
+  function parseNumberSmart(input) {
+    if (input === null || input === undefined) return null;
+    let s = String(input).trim();
+    if (s === "") return { value: 0, decimals: 0 };
+
+    // Chuẩn hóa khoảng trắng & NBSP
+    s = s.replace(/\u00A0/g, " ").replace(/ /g, "");
+
+    const lastComma = s.lastIndexOf(",");
+    const lastDot = s.lastIndexOf(".");
+
+    // Suy đoán dấu thập phân
+    let decimalChar = ".";
+    if (lastComma > -1 && lastDot > -1) {
+      decimalChar = lastComma > lastDot ? "," : ".";
+    } else if (lastComma > -1) {
+      // Chỉ có dấu phẩy -> coi là thập phân (phổ biến ở vi-VN)
+      decimalChar = ",";
+    } else {
+      // Mặc định ISO/en-US
+      decimalChar = ".";
+    }
+
+    const thousandChar = decimalChar === "." ? "," : ".";
+
+    // Bỏ dấu ngăn cách hàng nghìn
+    const withoutThousands = s.replace(new RegExp("\\" + thousandChar, "g"), "");
+
+    // Chuẩn hóa dấu thập phân về '.'
+    const normalized = withoutThousands.replace(new RegExp("\\" + decimalChar, "g"), ".");
+
+    // Xác định số chữ số thập phân gốc
+    const fracPart = normalized.split(".")[1] || "";
+    const decimals = fracPart.length;
+
+    const value = Number(normalized);
+    if (!Number.isFinite(value)) return null;
+
+    return { value, decimals };
+  }
+
+  function formatNumberKeepScale(input, locale = "en-US") {
+    const parsed = parseNumberSmart(input);
+    if (!parsed) return input ?? "";
+    const { value, decimals } = parsed;
+
+    // Ép giữ đúng số chữ số thập phân như nguồn
+    const fmt = new Intl.NumberFormat(locale, {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    });
+    return fmt.format(value);
+  }
+
+  // Nếu luôn cần đúng 3 chữ số thập phân, dùng hàm này thay vì formatNumberKeepScale
+  function formatNumberFixed3(input, locale = "en-US") {
+    const parsed = parseNumberSmart(input);
+    if (!parsed) return input ?? "";
+    const { value } = parsed;
+    const fmt = new Intl.NumberFormat(locale, {
+      minimumFractionDigits: 3,
+      maximumFractionDigits: 3,
+    });
+    return fmt.format(value);
+  }
+  /**GỘP HIỆU SUẤT VỚI LƯƠNG VÀ TÍNH TOÁN TRƯỚC KHI VẼ BẢNG*/
+  function mergeHieuSuatVaLuong(dataHieuSuat, dataLuong) {
+    // 1. Tạo Map để tra cứu nhanh Lương Target và Lương Cố Định từ dataLuong (Object Array từ API Snapshot mới)
+    const luongMap = new Map();
+    if (Array.isArray(dataLuong)) {
+      for (const item of dataLuong) {
+        if (!item) continue;
+
+        let maNhanSu = "";
+        let luongTarget = 0;
+        let luongCoDinh = 0;
+
+        if (typeof item === 'object' && !Array.isArray(item)) {
+          maNhanSu = String(item.ma_nhan_su || '').trim();
+          luongTarget = Number(item.luongTarget ?? item.luong_target ?? 0);
+          luongCoDinh = Number(item.luongCoDinh ?? item.luong_co_dinh ?? item.lcd_gt ?? 0);
+        } else if (Array.isArray(item) && item.length > 0) {
+          maNhanSu = String(item[0] || '').trim();
+          luongTarget = parseFloat(item[26]) || 0;
+          luongCoDinh = parseFloat(item[27]) || 0;
+        }
+
+        if (maNhanSu) {
+          luongMap.set(maNhanSu, { luongTarget, luongCoDinh });
+        }
+      }
+    }
+
+    // 2. Tạo mảng kết quả với header
+    const mergedData = [];
+    const header = [
+      "KỲ NGHIỆM THU",
+      "KHỐI",
+      "TEAM",
+      "MÃ NHÂN SỰ",
+      "HỌ VÀ TÊN",
+      "LƯƠNG TARGET",
+      "LƯƠNG CỐ ĐỊNH",
+      "LƯƠNG HIỆU SUẤT DỰ KIẾN",
+      "TỔNG HIỆU SUẤT",
+      "TỶ LỆ HIỆU SUẤT/TARGET",
+      "TỶ LỆ ĐẠT HIỆU SUẤT",
+      "TỔNG THU NHẬP",
+      "TỶ LỆ ĐẠT TTN",
+      "KỲ TRẢ LƯƠNG"
+    ];
+    mergedData.push(header);
+
+    // Lấy kỳ trả lương hiện tại để gán vào bảng
+    const strThangChiTra = $("#modal_tonghophieusuat_2_thangChiTra_DropList").val() || "";
+
+
+    // 3. Duyệt từng dòng và merge dữ liệu
+    for (let i = 0; i < dataHieuSuat.length; i++) {
+      const row = dataHieuSuat[i];
+      const maNhanSu = row[3]?.toString().trim() || "";
+
+      const hsData = luongMap.get(maNhanSu) || { luongTarget: 0, luongCoDinh: 0 };
+      const luongTarget = hsData.luongTarget;
+      const luongCoDinh = hsData.luongCoDinh;
+
+      const tongHieuSuat = parseFloat(row[5]) || 0;
+
+      const luongHieuSuatDuKien = luongTarget - luongCoDinh;
+      const tyLeHieuSuatTarget = luongTarget !== 0 ? tongHieuSuat / luongTarget : 0;
+      const tyLeDatHieuSuat = luongHieuSuatDuKien !== 0 ? tongHieuSuat / luongHieuSuatDuKien : 0;
+      const tongThuNhap = tongHieuSuat + luongCoDinh;
+      const tyLeDatTTN = luongTarget !== 0 ? tongThuNhap / luongTarget : 0;
+
+      const newRow = [
+        row[0], row[1], row[2], maNhanSu, row[4],
+        luongTarget, luongCoDinh, luongHieuSuatDuKien,
+        tongHieuSuat, tyLeHieuSuatTarget, tyLeDatHieuSuat,
+        tongThuNhap, tyLeDatTTN, strThangChiTra
+      ];
+
+      mergedData.push(newRow);
+    }
+
+    return mergedData;
+  }
+
+  /**Hàm tạo data so sánh*/
+  function pivotTenJob_SoSanh(data, kyChon) {
+    if (!Array.isArray(data) || data.length === 0) return [];
+
+    const header = data[0] || [];
+    const rows = data.slice(1);
+
+    // Map index theo tên cột (khớp với header)
+    const IDX = {
+      KY_NGHIEM_THU: header.indexOf("KỲ NGHIỆM THU"),
+      NHOM_CV: header.indexOf("NHÓM CÔNG VIỆC"),
+      TEN_JOB: header.indexOf("TÊN JOB"),
+      SO_LUONG: header.indexOf("SỐ LƯỢNG"),
+    };
+
+    // Kiểm tra đủ cột
+    for (const [k, v] of Object.entries(IDX)) {
+      if (v === -1) {
+        console.warn("Thiếu cột:", k);
+        return [];
+      }
+    }
+
+    // 1) Sắp xếp theo Nhóm CV -> Tên Job (giống GAS)
+    rows.sort((a, b) => {
+      const aN = (a[IDX.NHOM_CV] ?? "").toString();
+      const bN = (b[IDX.NHOM_CV] ?? "").toString();
+      if (aN === bN) {
+        const aJ = (a[IDX.TEN_JOB] ?? "").toString();
+        const bJ = (b[IDX.TEN_JOB] ?? "").toString();
+        return aJ.localeCompare(bJ, "vi");
+      }
+      return aN.localeCompare(bN, "vi");
+    });
+
+    // 2) Pivot & tổng hợp
+    const pivotMap = Object.create(null);
+    const kySet = new Set();
+
+    for (const row of rows) {
+      const ky = row[IDX.KY_NGHIEM_THU];
+      const nhom = row[IDX.NHOM_CV];
+      const tenJob = row[IDX.TEN_JOB];
+
+      // SỐ LƯỢNG có thể là số hoặc chuỗi số
+      const soLuong = Number(row[IDX.SO_LUONG]) || 0;
+
+      kySet.add(ky);
+      const key = `${nhom} - ${tenJob}`;
+
+      if (!pivotMap[key]) {
+        pivotMap[key] = {
+          nhomCv: nhom,
+          tenJob: tenJob,
+          totalPerKy: Object.create(null),
+        };
+      }
+      pivotMap[key].totalPerKy[ky] = (pivotMap[key].totalPerKy[ky] || 0) + soLuong;
+    }
+
+    // --- NEW: parse kỳ "Tm.yyyy" thành {year, month} ---
+    function parseKy(ky) {
+      const m = /^T(\d{1,2})\.(\d{4})$/.exec(String(ky || "").trim());
+      if (!m) return { year: Number.POSITIVE_INFINITY, month: Number.POSITIVE_INFINITY, raw: ky };
+      return { year: Number(m[2]), month: Number(m[1]), raw: ky };
+    }
+
+    // --- NEW: sắp xếp tăng dần theo (year, month), đưa kyChon xuống cuối ---
+    const allKy = Array.from(kySet);
+    const hasKyChon = allKy.includes(kyChon);
+
+    const kySorted = allKy
+      .filter(k => k !== kyChon)
+      .sort((a, b) => {
+        const A = parseKy(a), B = parseKy(b);
+        if (A.year !== B.year) return A.year - B.year;
+        if (A.month !== B.month) return A.month - B.month;
+        return String(A.raw).localeCompare(String(B.raw), "vi");
+      });
+
+    // Nếu kyChon không có trong dữ liệu vẫn đưa vào cuối để hiển thị 0
+    const kyArr = hasKyChon ? [...kySorted, kyChon] : [...kySorted, kyChon];
+
+    // 3) Header: [NHÓM CÔNG VIỆC, TÊN JOB, ...các kỳ..., %+/- vs (mỗi kỳ khác kyChon)]
+    const newHeader = ["NHÓM CÔNG VIỆC", "TÊN JOB", ...kyArr];
+    for (const ky of kyArr) {
+      if (ky !== kyChon) newHeader.push(`%+/- vs ${ky}`);
+    }
+
+    const result = [newHeader];
+
+    // 4) Duyệt từng nhóm-job để đổ dữ liệu
+    for (const key in pivotMap) {
+      const item = pivotMap[key];
+      const rowOut = [item.nhomCv, item.tenJob];
+
+      const valKyChon = item.totalPerKy[kyChon] || 0;
+
+      // Tổng theo từng kỳ
+      for (const ky of kyArr) {
+        rowOut.push(item.totalPerKy[ky] || 0);
+      }
+
+      // Cột so sánh (tránh chia 0), công thức: (valKyChon / valCompare) - 1
+      for (const ky of kyArr) {
+        if (ky === kyChon) continue;
+        const valCompare = item.totalPerKy[ky] || 0;
+        let comp;
+        if (valCompare === 0) {
+          comp = (valKyChon === 0) ? 0 : 1; // cùng 0 => 0, khác 0 => +100%
+        } else {
+          comp = (valKyChon / valCompare) - 1;
+        }
+        rowOut.push(comp);
+      }
+
+      result.push(rowOut);
+    }
+
+    return result;
+  }
+  /**Hàm tạo bảng so sánh*/
+  // file: pg_pivot.js
+  function pg_pivot_taoBang(dataArray, containerId = 'dataTableSoSanh_container') {
+    if (!Array.isArray(dataArray) || dataArray.length === 0) {
+      console.error("Dữ liệu không hợp lệ!");
+      return;
+    }
+
+    // === CSS đảm bảo canh lề phải hoạt động đồng nhất (thead/tbody/tfoot) ===
+    (function ensureAlignCSS() {
+      if (!document.getElementById('pg_pivot_align_css')) {
+        const style = document.createElement('style');
+        style.id = 'pg_pivot_align_css';
+        style.textContent = `
+        .right-align { text-align: right !important; }
+        .center-align { text-align: center !important; }
+        .left-align { text-align: left !important; }
+      `;
+        document.head.appendChild(style);
+      }
+    })();
+
+    // Chuẩn hoá
+    const headers = dataArray[0];
+    const rows = dataArray.slice(1);
+
+    // Nhận diện cột %
+    const PERCENT_COLS = [];
+    headers.forEach((h, i) => {
+      if (/^%\+\/-\s*vs\s+/i.test(String(h))) PERCENT_COLS.push(i);
+    });
+
+    // Cột số (từ index 2, trừ cột %)
+    const NUMERIC_COLS = [];
+    headers.forEach((_, i) => {
+      if (i >= 2 && !PERCENT_COLS.includes(i)) NUMERIC_COLS.push(i);
+    });
+
+    const TEXT_COLS = [0, 1];
+
+    // Tính tổng lần đầu (toàn bộ dữ liệu) – chỉ để render tĩnh ban đầu
+    const totalRow = new Array(headers.length).fill(0);
+    rows.forEach(row => {
+      NUMERIC_COLS.forEach(ci => {
+        const raw = row[ci];
+        const n = Number(String(raw ?? "").replace(/,/g, ""));
+        if (Number.isFinite(n)) totalRow[ci] += n;
+      });
+    });
+
+    // Map cột % -> cột gốc để so sánh
+    const formatPercent = (v) => Number.isFinite(v) ? (v * 100).toFixed(2) + "%" : "0%";
+    const lastNumericIdx = NUMERIC_COLS.length ? NUMERIC_COLS[NUMERIC_COLS.length - 1] : null;
+    const lastTotal = lastNumericIdx != null ? Number(totalRow[lastNumericIdx]) : NaN;
+
+    const fallbackBases = NUMERIC_COLS.filter(ci => ci !== lastNumericIdx);
+    let fallbackPtr = 0;
+    const percentBaseIndexByCol = new Map();
+
+    PERCENT_COLS.forEach(pcIdx => {
+      const h = String(headers[pcIdx] ?? "");
+      let baseIdx = null;
+      const m = h.match(/^%\+\/-\s*vs\s+(.+)$/i);
+      if (m) {
+        const label = m[1].trim();
+        const labelIdx = headers.findIndex(x => String(x).trim() === label);
+        if (labelIdx >= 0 && NUMERIC_COLS.includes(labelIdx)) baseIdx = labelIdx;
+      }
+      if (baseIdx == null) {
+        if (fallbackPtr < fallbackBases.length) baseIdx = fallbackBases[fallbackPtr++];
+      }
+      percentBaseIndexByCol.set(pcIdx, baseIdx);
+    });
+
+    const percentTotalsByCol = new Map();
+    PERCENT_COLS.forEach(pcIdx => {
+      const baseIdx = percentBaseIndexByCol.get(pcIdx);
+      const baseTotal = baseIdx != null ? Number(totalRow[baseIdx]) : NaN;
+      let ratio = 0;
+      if (Number.isFinite(lastTotal) && Number.isFinite(baseTotal) && baseTotal !== 0) {
+        ratio = lastTotal / baseTotal - 1;
+      }
+      percentTotalsByCol.set(pcIdx, formatPercent(ratio));
+    });
+
+    // --- Render HTML
+    const tableId = 'dataTableSoSanh';
+
+    const theadHtml = `
+    <thead class="table-warning font-weight-bold">
+      <tr>
+        ${headers.map(h => `<th scope='col' style="white-space:nowrap;">${h}</th>`).join("")}
+      </tr>
+    </thead>`;
+
+    const tbodyHtml = `
+    <tbody>
+      ${rows.map(row => {
+      const tds = headers.map((_, ci) => {
+        const val = row[ci] ?? "";
+        return `<td>${val === '' ? '' : String(val)}</td>`;
+      }).join("");
+      return `<tr>${tds}</tr>`;
+    }).join("")}
+    </tbody>`;
+
+    // TFOOT: số & % đều căn phải
+    const tfootHtml = `
+    <tfoot>
+      <tr class="table-warning font-weight-bold">
+        ${headers.map((_, ci) => {
+      if (NUMERIC_COLS.includes(ci)) {
+        const s = totalRow[ci];
+        return `<td style="white-space:nowrap; text-align:right;"><strong>${Number(s).toLocaleString('vi-VN')}</strong></td>`;
+      }
+      if (PERCENT_COLS.includes(ci)) {
+        const p = percentTotalsByCol.get(ci) ?? "0%";
+        return `<td style="white-space:nowrap; text-align:right;"><strong>${p}</strong></td>`;
+      }
+      return `<td style="white-space:nowrap;">${ci === 0 ? '<strong>Total</strong>' : ''}</td>`;
+    }).join("")}
+      </tr>
+    </tfoot>`;
+
+    const tableHtml = `
+  <table class='table table-sm' id='${tableId}' style="table-layout:auto; width:auto;">
+    ${theadHtml}
+    ${tbodyHtml}
+    ${tfootHtml}
+  </table>`;
+
+    const container = document.getElementById(containerId);
+    if (!container) {
+      console.error("Không tìm thấy container:", containerId);
+      return;
+    }
+    container.innerHTML = `<div style="width:100%;">${tableHtml}</div>`;
+
+    // --- DataTables
+    $(document).ready(function () {
+      const percentTargets = PERCENT_COLS.slice();
+      const numericTargets = NUMERIC_COLS.slice();
+      const textTargets = TEXT_COLS.slice();
+
+      // Hàm tính lại footer theo các hàng đang được áp dụng filter
+      function recalcFooter(dtInstance) {
+        const totals = new Array(headers.length).fill(0);
+
+        const parseNumber = (v) => {
+          if (v == null || v === "") return 0;
+          const n = Number(String(v).replace(/[%\s,]/g, ''));
+          return Number.isFinite(n) ? n : 0;
+          // Lưu ý: cột % ở tbody không dùng để cộng dồn
+        };
+
+        // Cộng dồn cho các cột số trên dữ liệu đã lọc
+        numericTargets.forEach(ci => {
+          const colData = dtInstance.column(ci, { filter: 'applied' }).data().toArray();
+          totals[ci] = colData.reduce((acc, val) => acc + parseNumber(val), 0);
+        });
+
+        // Tính lại % chênh theo tổng hiện tại
+        const lastNumericIdxLocal = numericTargets.length ? numericTargets[numericTargets.length - 1] : null;
+        const lastTotalLocal = lastNumericIdxLocal != null ? Number(totals[lastNumericIdxLocal]) : NaN;
+
+        const $tfootCells = $(`#${tableId} tfoot tr`).children('td');
+
+        headers.forEach((_, ci) => {
+          if (numericTargets.includes(ci)) {
+            $tfootCells.eq(ci).html(`<strong>${Number(totals[ci]).toLocaleString('vi-VN')}</strong>`);
+          } else if (percentTargets.includes(ci)) {
+            const baseIdx = percentBaseIndexByCol.get(ci);
+            const baseTotalLocal = baseIdx != null ? Number(totals[baseIdx]) : NaN;
+            let ratio = 0;
+            if (Number.isFinite(lastTotalLocal) && Number.isFinite(baseTotalLocal) && baseTotalLocal !== 0) {
+              ratio = lastTotalLocal / baseTotalLocal - 1;
+            }
+            $tfootCells.eq(ci).html(`<strong>${formatPercent(ratio)}</strong>`);
+          } else {
+            if (ci === 0) $tfootCells.eq(ci).html('<strong>Tổng cộng</strong>');
+          }
+        });
+      }
+
+      const dt = $(`#${tableId}`).DataTable({
+        responsive: false,
+        scrollX: true,
+        autoWidth: false,
+        stateSave: true,
+        paging: false,
+        ordering: headers.length >= 3,
+        order: headers.length >= 2 ? [[0, 'asc'], [1, 'asc']] : [],
+        pageLength: 10,
+        lengthMenu: [[10, 25, 50, 100, -1], ['10', '25', '50', '100', 'Tất cả']],
+        language: {
+          lengthMenu: "_MENU_ ",
+          zeroRecords: "Không tìm thấy",
+          info: "Hiển thị _START_ đến _END_ trong _TOTAL_ dòng",
+          infoEmpty: "Không có dữ liệu",
+          search: '<i class="fas fa-search"></i>:',
+          paginate: { first: "Đầu", previous: "‹", next: "›", last: "Cuối" }
+        },
+        columnDefs: [
+          {
+            // Số: căn phải
+            targets: numericTargets,
+            className: 'all right-align',
+            render: function (data, type) {
+              if (type === 'display' || type === 'filter') {
+                if (data == null || data === "") return "0";
+                const n = Number(String(data).replace(/,/g, ''));
+                return Number.isFinite(n) ? n.toLocaleString('vi-VN') : String(data);
+              }
+              if (type === 'sort' || type === 'type') {
+                const n = Number(String(data).replace(/,/g, ''));
+                return Number.isFinite(n) ? n : 0;
+              }
+              return data ?? "";
+            }
+          },
+          {
+            // %: căn phải
+            targets: percentTargets,
+            className: 'all right-align',
+            render: function (data, type) {
+              if (type === 'display' || type === 'filter') {
+                if (data == null || data === "") return "0%";
+                const v = Number(String(data).replace(/,/g, ''));
+                if (!Number.isFinite(v)) return "0%";
+                return (v * 100).toFixed(2) + "%";
+              }
+              if (type === 'sort' || type === 'type') {
+                const v = Number(String(data).replace(/,/g, ''));
+                return Number.isFinite(v) ? v : 0;
+              }
+              return data ?? "";
+            }
+          },
+          {
+            targets: textTargets,
+            className: 'left-align',
+            type: 'string',
+            render: function (data) {
+              return data ?? "";
+            }
+          }
+        ],
+        drawCallback: function () {
+          // Mỗi lần DataTables vẽ (search/order/filter/paging) thì update footer
+          recalcFooter(this.api());
+        },
+        createdRow: function (row) {
+          // Vì: giữ layout ổn định khi có scrollX
+          $(row).css('table-layout', 'fixed');
+        }
+      });
+
+      // Gọi lần đầu sau khi init để đồng bộ footer
+      recalcFooter(dt);
+      dt.columns.adjust().draw();
+    });
+  }
+
+
+
+  /**Hàm bấm nút so sánh*/
+  function modal_totrinh_3_compare() {
+    const dataGlobal = pg_general_3_cachedDataHieuSuat;//window.pg_general_3_cachedDataHieuSuat; // đổi nếu bạn đặt tên khác
+    //console.log("dataGlobal:", dataGlobal);
+    const select = document.getElementById("modal_tonghophieusuat_2_kyNghiemThu_DropList");
+    const kyChon = select ? select.value : "";
+
+    const pivot = pivotTenJob_SoSanh(dataGlobal, kyChon);
+
+    // TODO: bạn render pivot ra bảng, DataTable, Google Charts… tuỳ nhu cầu
+    //console.log("Pivot result:", pivot);
+    //return pivot;
+    pg_pivot_taoBang(pivot)
+  }
+
+</script>

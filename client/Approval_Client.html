@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<!-- 
+  MODULE CLIENT DUYỆT TỜ TRÌNH - REFACTORED TO TABLE VIEW
+  -----------------------------------------
+-->
+
+<style>
+    #modalApprovalList .modal-header {
+        background-color: #2E3D76;
+        color: white;
+    }
+
+    #modalApprovalList .nav-tabs .nav-link {
+        color: #6c757d;
+        font-weight: 500;
+        border: none;
+        padding: 12px 25px;
+    }
+
+    #modalApprovalList .nav-tabs .nav-link.active {
+        color: #2E3D76;
+        border-bottom: 3px solid #2E3D76;
+        background: transparent;
+    }
+
+    #tableApproval_wrapper {
+        padding: 15px;
+    }
+
+    .status-badge {
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: bold;
+    }
+
+    .badge-pending {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+
+    .badge-approved {
+        background-color: #d4edda;
+        color: #155724;
+    }
+
+    .badge-rejected {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+
+    .badge-recalled {
+        background-color: #e2e3e5;
+        color: #383d41;
+    }
+</style>
+
+<!-- MODAL: DANH SÁCH TỜ TRÌNH (DẠNG BẢNG) -->
+<div class="modal fade" id="modalApprovalList" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content"
+            style="border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold"><i class="fa-solid fa-list-check me-2"></i> QUẢN LÝ DUYỆT TỜ TRÌNH</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body p-0 bg-light">
+                <!-- Navigation Tabs -->
+                <ul class="nav nav-tabs bg-white px-3 border-bottom" id="approvalTabs" role="tablist">
+                    <li class="nav-item">
+                        <button class="nav-link active" id="pending-tab" data-bs-toggle="tab"
+                            data-bs-target="#tab-content" type="button" onclick="app_switchTab('PENDING')">
+                            <i class="fa-solid fa-hourglass-half me-1"></i> Chờ duyệt
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#tab-content"
+                            type="button" onclick="app_switchTab('HISTORY')">
+                            <i class="fa-solid fa-history me-1"></i> Lịch sử duyệt
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Table Content Area -->
+                <div class="p-3">
+                    <div class="bg-white rounded shadow-sm">
+                        <table id="tableApproval" class="table table-hover table-bordered align-middle w-100"
+                            style="font-size: 0.9rem;">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-center" style="width: 80px;">Xem</th>
+                                    <th class="text-center">Ngày tạo</th>
+                                    <th>Tiêu đề</th>
+                                    <th>Loại tờ trình</th>
+                                    <th>Người tạo</th>
+                                    <th>Bộ phận</th>
+                                    <th>Kỳ lương</th>
+                                    <th class="text-center">Trạng thái</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- DataTables will populate this -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer bg-white border-top">
+                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    /**
+     * MODULE CLIENT LOGIC (REFACTORED & STABILIZED)
+     */
+    var _currentTab = 'PENDING';
+    var _datatableApproval = null;
+    var _bsModalList = null;
+
+    $(document).ready(function () {
+        // Chỉ chạy 1 lần khi load trang để lấy con số ban đầu
+        setTimeout(app_checkNotifications, 3000);
+
+        // TẮT BỎ hoàn toàn việc setInterval (polling liên tục) theo yêu cầu của user
+        // setInterval(app_checkNotifications, 60000); 
+    });
+
+    function app_checkNotifications() {
+        if (typeof google === 'undefined') return;
+        google.script.run
+            .withSuccessHandler(function (count) {
+                var $btn = $('#btnApprovalNotify');
+                var $badge = $('#badgeApprovalCount');
+                $btn.show();
+                if (count > 0) {
+                    $badge.text(count).show();
+                    // TẮT BỎ hiệu ứng rung chuông gây nhầm lẫn
+                    // $btn.addClass('animate__animated animate__swing');
+                } else {
+                    $badge.hide();
+                    $btn.removeClass('animate__animated animate__swing');
+                }
+            })
+            .sv_countPendingProposals();
+    }
+
+    function app_openApprovalList() {
+        // Cập nhật lại số lượng trước khi mở
+        app_checkNotifications();
+
+        if (!_bsModalList) {
+            _bsModalList = new bootstrap.Modal(document.getElementById('modalApprovalList'));
+        }
+        _bsModalList.show();
+
+        // Luôn load dữ liệu mới nhất khi mở modal
+        if (_currentTab !== 'PENDING') {
+            document.getElementById('pending-tab').click();
+        } else {
+            app_switchTab('PENDING');
+        }
+    }
+
+    function app_switchTab(tab) {
+        _currentTab = tab;
+        app_loadApprovalData();
+    }
+
+    function app_loadApprovalData() {
+        // Reset bảng về trạng thái chờ
+        const $table = $('#tableApproval');
+        if ($.fn.DataTable.isDataTable($table)) {
+            $table.DataTable().destroy();
+        }
+
+        // Xây dựng lại cấu trúc Table (HEAD + BODY) vì có thể bị global reset xóa mất
+        $table.html(`
+            <thead class="table-light">
+                <tr>
+                    <th class="text-center" style="width: 80px;">Xem</th>
+                    <th class="text-center">Ngày tạo</th>
+                    <th>Tiêu đề</th>
+                    <th>Loại tờ trình</th>
+                    <th>Người tạo</th>
+                    <th>Bộ phận</th>
+                    <th>Kỳ lương</th>
+                    <th class="text-center">Trạng thái</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td colspan="8" class="text-center p-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <div class="mt-2 text-primary fw-bold">Đang tải danh sách tờ trình...</div>
+                </td></tr>
+            </tbody>
+        `);
+
+        google.script.run
+            .withSuccessHandler(function (data) {
+                app_renderTable(data);
+            })
+            .withFailureHandler(function (err) {
+                $table.find('tbody').html(`<tr><td colspan="8" class="text-center text-danger p-5">Lỗi: ${err.message}</td></tr>`);
+            })
+            .sv_getProposalList(_currentTab);
+    }
+
+    function app_renderTable(data) {
+        // Destroy table if it was somehow re-initialized
+        if ($.fn.DataTable.isDataTable('#tableApproval')) {
+            $('#tableApproval').DataTable().destroy();
+        }
+
+        $('#tableApproval tbody').empty();
+
+        if (!data || data.length === 0) {
+            $('#tableApproval tbody').html('<tr><td colspan="8" class="text-center p-4 text-muted">Không tìm thấy tờ trình nào.</td></tr>');
+            return;
+        }
+
+        // Format and render items
+        data.forEach(function (item) {
+            var statusBadge = '';
+            var s = item.trangThai.toUpperCase();
+            if (s === 'CHO_DUYET') statusBadge = '<span class="status-badge badge-pending">Chờ duyệt</span>';
+            else if (s === 'DA_DUYET') statusBadge = '<span class="status-badge badge-approved">Đã duyệt</span>';
+            else if (s === 'TU_CHOI') statusBadge = '<span class="status-badge badge-rejected">Từ chối</span>';
+            else if (s === 'DA_THU_HOI') statusBadge = '<span class="status-badge badge-recalled">Thu hồi</span>';
+            else statusBadge = `<span class="badge bg-secondary">${item.trangThai}</span>`;
+
+            var rowHtml = `
+                <tr data-id="${item.id}">
+                    <td class="text-center">
+                        <button class="btn btn-sm btn-outline-primary" onclick="app_viewProposal('${item.id}')" title="Xem tờ trình">
+                            <i class="fa-solid fa-eye"></i> Xem
+                        </button>
+                    </td>
+                    <td class="text-center small">${new Date(item.ngayTao).toLocaleString('vi-VN')}</td>
+                    <td class="fw-bold text-dark">${item.tieuDe}</td>
+                    <td><span class="badge bg-light text-dark border">${item.loai === 'toTrinh_hieuSuat' ? 'Hiệu suất' : 'Thưởng'}</span></td>
+                    <td>${item.nguoiTao}</td>
+                    <td>${item.boPhan}</td>
+                    <td>${item.kyLuong}</td>
+                    <td class="text-center">${statusBadge}</td>
+                </tr>
+            `;
+            $('#tableApproval tbody').append(rowHtml);
+        });
+
+        _datatableApproval = $('#tableApproval').DataTable({
+            destroy: true,
+            pageLength: 10,
+            ordering: true,
+            order: [[1, "desc"]],
+            language: {
+                search: "Tìm kiếm:",
+                lengthMenu: "Hiện _MENU_ dòng",
+                info: "Hiển thị _START_ - _END_ / _TOTAL_ tờ trình",
+                infoEmpty: "Không có dữ liệu",
+                paginate: { previous: "‹", next: "›" },
+                zeroRecords: "Không tìm thấy kết quả"
+            },
+            columnDefs: [{ targets: 0, orderable: false }]
+        });
+    }
+
+    function app_viewProposal(id) {
+        if (typeof modal_totrinh_3_openForApproval === 'function') {
+            // Đóng modal danh sách trước khi mở chi tiết để tránh lỗi z-index
+            if (_bsModalList) _bsModalList.hide();
+
+            Swal.fire({
+                title: "Đang tải chi tiết...",
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
+
+            google.script.run
+                .withSuccessHandler(function (data) {
+                    Swal.close();
+                    if (!data) {
+                        Swal.fire("Lỗi", "Không tìm thấy dữ liệu tờ trình.", "error");
+                        if (_bsModalList) _bsModalList.show();
+                        return;
+                    }
+                    modal_totrinh_3_openForApproval(data);
+                })
+                .withFailureHandler(function (err) {
+                    Swal.fire("Lỗi", err.message, "error");
+                    if (_bsModalList) _bsModalList.show();
+                })
+                .sv_getProposalDetail(id);
+        }
+    }
+</script>

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UPLOAD</title>
+
+</head>
+<body>           
+    <div class="container-fluid">
+      <div id="modal_taoData_2_message"></div>
+      <!-- The Modal Form -->
+      <div class="modal" id="modal_taoData_2_Modal" aria-labelledby="modal_taoData_2_Modal" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+          <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header" style="background-color: #E0FFFA;">
+              <div class="container-fluid">
+                  <div class="row align-items-center g-1 d-flex flex-wrap">
+                    <!-- Tiêu đề -->
+                    <div class="col-auto">
+                        <h5 class="m-0" style="color: #00697F; font-weight: bold;">TẠO FILE DATA HIỆU SUẤT</h5>
+                    </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="modal-body">
+                <!-- Dropdown list -->
+                <div class="row d-flex justify-content-center">
+                  <select id="modal_taoData_2_CoChe" class="form-select text-center mx-2" 
+                      style="width: 450px; text-align: center; text-align-last: center;" 
+                      title="Chọn cơ chế">
+                      <option value="" disabled selected>Chọn cơ chế</option>
+                  </select>
+
+                  <select id="modal_taoData_2_Year" class="form-select text-center mx-2" 
+                      style="width: 450px; text-align: center; text-align-last: center;" 
+                      title="Chọn năm">
+                      <option value="" disabled selected>Chọn năm</option>
+                  </select>
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+              <button type="button" class="btn btn-success" id="modal_taoData_2_FormSubmit"  onclick="modal_taoData_3_Submit();" title="Lưu thông tin">Submit</button>
+              <button type="reset" class="btn btn-primary" value="Reset"  title="Xóa dữ liệu trên form">Reset</button>
+              <button type="button" class="btn btn-danger" data-bs-dismiss="modal" onclick="modal_taoData_3_backhideCol0()" title="Đóng form">Close</button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+</body>
+</html>

@@ -1,0 +1,941 @@
+<script>
+    function modal_khung_3_preventFormSubmit() {
+        var forms = document.querySelectorAll('form');
+        for (var i = 0; i < forms.length; i++) {
+            forms[i].addEventListener('submit', function (event) {
+                event.preventDefault();
+            });
+        }
+    }
+
+    window.addEventListener("load", modal_khung_3_functionInit, true);
+    //window.addEventListener("beforeunload", modal_khung_3_falseState, true);
+
+    function modal_khung_3_functionInit() {
+        $('#spinnerModal').modal('show');
+        modal_khung_3_preventFormSubmit();
+
+        // Init modal close handler
+        $('#khungCoCheModal').on('hide.bs.modal', function (e) {
+            if (modal_khung_forceClose) {
+                modal_khung_forceClose = false;
+                return;
+            }
+
+            if (modal_khung_hasUnsavedChanges()) {
+                e.preventDefault();
+
+                // Tạm ẩn backdrop để Swal hiển thị tốt hơn (nếu cần)
+                // const backdrop = document.querySelector(".modal-backdrop");
+                // if (backdrop) backdrop.style.zIndex = "1000";
+
+                Swal.fire({
+                    title: "Dữ liệu chưa được lưu!",
+                    text: "Có thay đổi chưa lưu trong khung cơ chế. Bạn có chắc muốn đóng?",
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonText: "Đóng luôn",
+                    cancelButtonText: "Quay lại"
+                }).then((result) => {
+                    // if (backdrop) backdrop.style.zIndex = "";
+                    if (result.isConfirmed) {
+                        modal_khung_forceClose = true;
+                        // Reset status to allow clean close logic if needed, 
+                        // though forceClose handles the bypass.
+                        document.getElementById('modal_khung_2_status').value = "new";
+                        $('#khungCoCheModal').modal('hide');
+                        // Call original reset logic if needed, but 'hide' event usually implies just closing. 
+                        // If specific reset logic is needed, call modal_khung_3_resetTabs() here.
+                        modal_khung_3_resetTabs();
+                    }
+                });
+            }
+        });
+    };
+
+    var modal_khung_forceClose = false;
+
+    function modal_khung_hasUnsavedChanges() {
+        const statusElement = document.getElementById('modal_khung_2_status');
+        return statusElement && statusElement.value === "non-save";
+    }
+
+
+    //HIỂN THỊ MODAL
+    function modal_khung_3_ShowModal() {
+        //document.getElementById("overlay").classList.add("active");
+        var overlay = document.getElementById("overlay");
+        if (overlay) {
+            overlay.classList.add("active");
+        }
+        $('#khungCoCheModal').modal('show');
+    }
+
+    //RELOAD KHUNG
+    function modal_khung_3_Reload() {
+        $('#spinnerModal').modal('show');
+
+        // Đếm số lượng API calls cần hoàn thành
+        let totalCalls = 4; // 4 API calls chính
+        let completedCalls = 0;
+
+        // Hàm đóng spinner khi tất cả calls đã xong
+        function checkAndClose() {
+            completedCalls++;
+            //console.log(`Reload progress: ${completedCalls}/${totalCalls}`);
+            if (completedCalls >= totalCalls) {
+                $('#spinnerModal').modal('hide');
+                //console.log('✅ All dropdowns reloaded successfully');
+            }
+        }
+
+        // Reload dropdown cơ chế cho trang chính
+        pg_general_3_taoDropDown_CoChe();
+        // Đợi 2 giây để API call hoàn thành
+        setTimeout(() => checkAndClose(), 2000);
+
+        // Reload dropdown cơ chế cho modal Upload
+        modal_UpDataChiTiet_3_taoDropDown_CoChe();
+        setTimeout(() => checkAndClose(), 2000);
+
+        // Reload dropdown cơ chế cho modal Form
+        modal_Form_3_createDropdown_TenCoChe();
+        setTimeout(() => checkAndClose(), 2000);
+
+        // Reload dropdown cơ chế cho modal Tạo data
+        modal_taoData_3_taoDropDown_CoChe();
+        setTimeout(() => checkAndClose(), 2000);
+
+        // Safety timeout: nếu sau 6 giây vẫn chưa xong thì đóng spinner
+        setTimeout(() => {
+            if (completedCalls < totalCalls) {
+                console.warn('⚠️ Reload timeout - forcing spinner close');
+                $('#spinnerModal').modal('hide');
+            }
+        }, 6000);
+    }
+
+    /**NHÓM HÀM TẠO GIAO DIỆN BAN ĐẦU*/
+
+
+    //Hàm này dùng cho chức năng hiển thị các tab khi xem và upload KHUNG
+    document.querySelectorAll('.resizable-input').forEach(input => {
+        input.addEventListener('mousedown', (event) => {
+            input.style.resize = 'both';
+        });
+    });
+    // Hàm mở tab tương ứng
+    function openTab(evt, tabName) {
+        // Ẩn tất cả các tab
+        var tabcontent = document.getElementsByClassName("tabcontent");
+        for (var i = 0; i < tabcontent.length; i++) {
+            tabcontent[i].style.display = "none";
+        }
+
+        // Bỏ class 'active' của tất cả nút tab
+        var tablinks = document.getElementsByClassName("tablink");
+        for (var i = 0; i < tablinks.length; i++) {
+            tablinks[i].className = tablinks[i].className.replace(" active", "");
+        }
+
+        // Hiển thị tab hiện tại
+        document.getElementById(tabName).style.display = "block";
+
+        // Thêm class 'active' cho nút tab (nếu sự kiện không phải null)
+        if (evt) {
+            evt.currentTarget.className += " active";
+        } else {
+            // Nếu không có sự kiện, thêm class 'active' cho nút tab bằng cách tìm theo id
+            var tabButton = document.querySelector(`.tablink[onclick*="${tabName}"]`);
+            if (tabButton) {
+                tabButton.className += " active";
+            }
+        }
+    }
+
+    /*    function modal_khung_3_Reset() {
+            const statusElement = document.getElementById('modal_khung_2_status');
+    
+            if (!statusElement) return;
+    
+            if (statusElement.value === "non-save") {
+                // Ẩn backdrop của modal tạm thời
+                document.querySelector(".modal-backdrop").style.zIndex = "1000";
+    
+                Swal.fire({
+                    title: "Bạn có chắc muốn đóng màn hình upload khung?",
+                    text: "Dữ liệu chưa được lưu, bạn có muốn tiếp tục?",
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonText: "Tiếp tục đóng!",
+                    cancelButtonText: "Ở lại màn hình này"
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        modal_khung_3_resetTabs();
+                    } else {
+                        // Khôi phục lại backdrop khi người dùng chọn ở lại
+                        document.querySelector(".modal-backdrop").style.zIndex = "";
+                    }
+                });
+            } else {
+                modal_khung_3_resetTabs();
+            }
+        }
+    */
+    // Sửa hàm Reset để xử lý backdrop và gọi resetTabs
+    function modal_khung_3_Reset() {
+        const statusElement = document.getElementById('modal_khung_2_status');
+
+        if (!statusElement) return;
+
+        if (statusElement.value === "non-save") {
+            // Tạm thời ẩn backdrop của modal (Nếu modal mở bằng Bootstrap, backdrop có thể tự tạo/quản lý)
+            // Tuy nhiên, để đảm bảo Swal nổi lên trên cùng, ta tạm ẩn backdrop của Bootstrap:
+            const backdrop = document.querySelector(".modal-backdrop");
+            if (backdrop) backdrop.style.zIndex = "1000";
+
+            Swal.fire({
+                title: "Bạn có chắc muốn đóng màn hình upload khung?",
+                text: "Dữ liệu chưa được lưu, bạn có muốn tiếp tục?",
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonText: "Tiếp tục đóng!",
+                cancelButtonText: "Ở lại màn hình này"
+            }).then((result) => {
+                // Khôi phục lại backdrop ban đầu
+                const backdrop = document.querySelector(".modal-backdrop");
+                if (backdrop) backdrop.style.zIndex = "";
+
+                if (result.isConfirmed) {
+                    modal_khung_3_resetTabs();
+                }
+            });
+        } else {
+            modal_khung_3_resetTabs();
+        }
+    }
+
+
+    /*function modal_khung_3_resetTabs() {
+
+      // Ẩn tất cả nội dung tab
+      document.querySelectorAll(".tabcontent").forEach(tab => {
+          tab.style.display = "none";
+      });
+
+      // Xóa nội dung các tab
+      document.getElementById("khungCoChe_tabMoTa").innerHTML = "";
+      document.getElementById("khungCoChe_tabDonGia").innerHTML = "";
+      document.getElementById("dvExcel_KhungTab").innerHTML = "";
+
+      // Reset input file
+      document.getElementById("fileUploadTab_Khung").value = "";
+
+      // Reset status
+      document.getElementById("modal_khung_2_status").value = "new";
+
+      // Reset dropdown về giá trị mặc định
+      //document.getElementById("modal_khung_2_khungCoChe_DropList").selectedIndex = 0;*/
+    // Reset dropdown về option có nội dung giống title
+    /*let dropdown = document.getElementById("modal_khung_2_khungCoChe_DropList");
+    let titleText = dropdown.getAttribute("title"); // Lấy title của select
+    let options = dropdown.options;
+
+    for (let i = 0; i < options.length; i++) {
+        if (options[i].text.trim() === titleText.trim()) {
+            dropdown.selectedIndex = i;
+            break;
+        }
+    }
+
+  // Đặt lại trạng thái active cho tab đầu tiên
+  document.querySelectorAll(".tablink").forEach(tab => {
+      tab.classList.remove("active");
+  });
+  modal_khung_3_hideInputAndButton();
+  // Hiển thị tab mặc định (tab đầu tiên) và active nó
+  document.getElementById("tabKhungCoChe").style.display = "block";
+  document.querySelector(".tablink").classList.add("active");
+  document.getElementById("overlay").classList.remove("active");
+  $('#khungCoCheModal').modal('hide'); // Đóng modal đúng cách
+
+}*/
+    // Sửa hàm resetTabs để dùng logic đóng Modal Bootstrap
+    function modal_khung_3_resetTabs() {
+        // Ẩn tất cả nội dung tab và xóa nội dung
+        document.querySelectorAll(".tabcontent").forEach(tab => {
+            tab.style.display = "none";
+            // Xóa nội dung
+            if (tab.id === "tabKhungCoChe") document.getElementById("khungCoChe_tabMoTa").innerHTML = '<p class="text-secondary text-center mt-5 p-5 bg-light rounded shadow-sm"><i class="fa-solid fa-circle-info me-2"></i> Dữ liệu Khung Mô Tả sẽ hiển thị ở đây. Vui lòng **Chọn cơ chế** và nhấn **Xem Khung**.</p>';
+            if (tab.id === "tabDonGia") document.getElementById("khungCoChe_tabDonGia").innerHTML = '<p class="text-secondary text-center mt-5 p-5 bg-light rounded shadow-sm"><i class="fa-solid fa-circle-info me-2"></i> Dữ liệu Khung Đơn Giá sẽ hiển thị ở đây. Vui lòng **Chọn cơ chế** và nhấn **Xem Khung**.</p>';
+            if (tab.id === "tabUploadKhung") document.getElementById("dvExcel_KhungTab").innerHTML = '<p class="text-secondary text-center"><i class="fa-solid fa-table me-2"></i> Khu vực hiển thị bảng dữ liệu Excel sau khi Load.</p>';
+        });
+
+        // Reset input file
+        document.getElementById("fileUploadTab_Khung").value = "";
+
+        // Reset status
+        document.getElementById("modal_khung_2_status").value = "new";
+
+        // Reset dropdown về giá trị mặc định (Dùng Select2)
+        $("#modal_khung_2_khungCoChe_DropList").val('').trigger('change');
+
+        // Đặt lại trạng thái active cho tab đầu tiên
+        document.querySelectorAll(".tablink").forEach(tab => {
+            tab.classList.remove("active");
+        });
+        modal_khung_3_hideInputAndButton(); // Ẩn khu vực tạo mới
+
+        // Hiển thị tab mặc định (tab đầu tiên) và active nó
+        document.getElementById("tabKhungCoChe").style.display = "block";
+        document.querySelector(".tablink").classList.add("active");
+
+        // Đóng Modal bằng hàm của Bootstrap/jQuery
+        $('#khungCoCheModal').modal('hide');
+    }
+    /*function modal_khung_3_hideInputAndButton() {
+
+        // Hiển thị input và button
+        document.getElementById('addKhung_name').style.display = 'none';
+        document.getElementById('addKhung_type_Container').style.display = 'none';
+        document.getElementById('taoKhung').style.display = 'none';
+    }*/
+    // Thêm hàm ẩn để đồng bộ
+    /*function modal_khung_3_hideInputAndButton() {
+        const container = document.getElementById('createKhungContainer');
+        const addKhungBtn = document.getElementById('addKhung');
+        const addKhungName = document.getElementById('addKhung_name');
+        const addKhungTypeContainer = document.getElementById('addKhung_type_Container');
+        const taoKhungBtn = document.getElementById('taoKhung');
+        
+        // Ẩn khu vực input/button
+        container.style.display = 'none';
+        addKhungName.style.display = 'none';
+        addKhungTypeContainer.style.display = 'none';
+        taoKhungBtn.style.display = 'none';
+
+        // Cập nhật nút "Hủy" thành "Tạo mới"
+        addKhungBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Tạo mới';
+        addKhungBtn.classList.remove('btn-danger');
+        addKhungBtn.classList.add('btn-success');
+    }*/
+    // Hàm ẩn khu vực tạo mới
+    function modal_khung_3_hideInputAndButton() {
+        const nameInput = document.getElementById('addKhung_name');
+        const typeSelect = document.getElementById('addKhung_type');
+        const taoKhungBtn = document.getElementById('taoKhung');
+        const addKhungBtn = document.getElementById('addKhung');
+
+        // ẨN CÁC PHẦN TỬ
+        nameInput.style.display = 'none';
+        typeSelect.style.display = 'none';
+        taoKhungBtn.style.display = 'none';
+
+        // HIỂN THỊ LẠI CÁC PHẦN TỬ CHÍNH
+        document.getElementById('modal_khung_2_khungCoChe_DropList').style.display = 'block';
+        document.getElementById('reloadKhung').style.display = 'flex'; // Dùng flex cho nút
+        document.getElementById('viewKhung').style.display = 'flex'; // Dùng flex cho nút
+
+        // Đổi nút: Hủy -> Tạo mới
+        addKhungBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Tạo mới';
+        addKhungBtn.classList.remove('btn-danger');
+        addKhungBtn.classList.add('btn-success');
+
+        // Đảm bảo Select2 vẫn hoạt động (cần khởi tạo lại Select2 nếu nó bị ẩn/hiện)
+        $('#modal_khung_2_khungCoChe_DropList').select2('destroy').select2({ /* ... config ... */ });
+    }
+    /*function modal_khung_3_showInputAndButton() {
+        const container = document.getElementById('createKhungContainer');
+        const addKhungBtn = document.getElementById('addKhung');
+        const addKhungName = document.getElementById('addKhung_name');
+        const addKhungTypeContainer = document.getElementById('addKhung_type_Container');
+        const taoKhungBtn = document.getElementById('taoKhung');
+
+        const isHidden = container.style.display === 'none' || container.style.display === '';
+
+        if (isHidden) {
+            // Hiển thị khu vực input/button
+            container.style.display = 'flex';
+            addKhungName.style.display = 'block'; // Hiển thị input
+            addKhungTypeContainer.style.display = 'block'; // Hiển thị select
+            taoKhungBtn.style.display = 'block'; // Hiển thị nút Tạo
+
+            // Cập nhật nút "Tạo mới" thành "Hủy"
+            addKhungBtn.innerHTML = '<i class="fa-solid fa-xmark"></i> Hủy';
+            addKhungBtn.classList.remove('btn-success');
+            addKhungBtn.classList.add('btn-danger');
+            
+            alert("Hãy nhập tên khung cần tạo và bấm nút Tạo");
+        } else {
+            modal_khung_3_hideInputAndButton(); // Gọi hàm ẩn
+        }
+    }*/
+    // Hàm hiển thị các trường input/select và nút Tạo
+    function modal_khung_3_showInputAndButton() {
+        const nameInput = document.getElementById('addKhung_name');
+        const typeSelect = document.getElementById('addKhung_type');
+        const taoKhungBtn = document.getElementById('taoKhung');
+        const addKhungBtn = document.getElementById('addKhung');
+
+        const isHidden = nameInput.style.display === 'none' || nameInput.style.display === '';
+
+        if (isHidden) {
+            // HIỂN THỊ CÁC PHẦN TỬ (Input/Select/Button Tạo)
+            nameInput.style.display = 'block';
+            typeSelect.style.display = 'block';
+            taoKhungBtn.style.display = 'block';
+
+            // ẨN CÁC PHẦN TỬ CHÍNH CẦN THIẾT (để tiết kiệm không gian và tránh xung đột)
+            document.getElementById('modal_khung_2_khungCoChe_DropList').style.display = 'none';
+            document.getElementById('reloadKhung').style.display = 'none';
+            document.getElementById('viewKhung').style.display = 'none';
+
+            // Đổi nút: Tạo mới -> Hủy
+            addKhungBtn.innerHTML = '<i class="fa-solid fa-xmark"></i> Hủy';
+            addKhungBtn.classList.remove('btn-success');
+            addKhungBtn.classList.add('btn-danger');
+
+            alert("Hãy nhập tên khung cần tạo và bấm nút Tạo");
+        } else {
+            modal_khung_3_hideInputAndButton();
+        }
+    }
+
+    /*function modal_khung_3_showInputAndButton() {
+        // Hiển thị thông báo
+        alert("Hãy nhập tên khung cần tạo và bấm nút Tạo");
+        
+        // Hiển thị input và button
+        document.getElementById('addKhung_name').style.display = 'block';
+        document.getElementById('addKhung_type_Container').style.display = 'block';
+        document.getElementById('taoKhung').style.display = 'block';
+    }*/
+    function modal_khung_3_TaoKhungMoi() {
+        const fileName = document.getElementById('addKhung_name').value.trim();
+        if (!fileName) {
+            alert("Vui lòng nhập tên khung cơ chế!");
+            return;
+        }
+        const loaiCoChe = document.getElementById('addKhung_type').value.trim();
+        if (!loaiCoChe) {
+            alert("Vui lòng chọn loại cơ chế!");
+            return;
+        }
+        $('#spinnerModal').modal('show');
+
+        // Gọi Apps Script để thực hiện tạo file
+        google.script.run
+            .withSuccessHandler(function (response) {
+                if (response.success) {
+                    alert(response.message + "\nFile ID: " + response.fileId);
+
+                    // Gọi hàm JavaScript để cập nhật dropdown
+                    functionInit();
+                    $('#spinnerModal').modal('hide');
+                } else {
+                    alert("Lỗi: " + response.message);
+                }
+            })
+            .withFailureHandler(function (error) {
+                alert("Đã xảy ra lỗi khi gọi Apps Script: " + error.message);
+                $('#spinnerModal').modal('hide');
+            })
+            .pgHieuSuatGs_taoKhungMoi(fileName, loaiCoChe); // Gọi hàm tạo khung
+    }
+
+    /**NHÓM HÀM THỰC THI UPLOAD Khung cơ chế*/
+    function modal_khung_3_Upload() {
+        var fileUploadTab_Khung = document.getElementById("fileUploadTab_Khung");
+        var regex = /^([a-zA-Z0-9\s_\\.\-:])+(.xls|.xlsx)$/;
+        if (regex.test(fileUploadTab_Khung.value.toLowerCase())) {
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                modal_khung_3_ProcessExcel(e.target.result);
+            };
+            reader.readAsArrayBuffer(fileUploadTab_Khung.files[0]);
+        } else {
+            alert("Lưu ý tên file upload viết liền không dấu không chứa ký tự đặc biệt.");
+        }
+    }
+
+    function modal_khung_3_ProcessExcel(data) {
+        var workbook = XLSX.read(data, { type: 'array' });
+        var firstSheet = workbook.SheetNames[0];
+        var excelRows = XLSX.utils.sheet_to_row_object_array(workbook.Sheets[firstSheet]);
+        var table = document.createElement("table");
+        table.className = "table table-bordered";
+
+        var headerRow = table.insertRow(-1);
+        var headers = ["STT", "NHÓM CÔNG VIỆC", "TÊN JOB", "ĐỘ KHÓ", "MÔ TẢ", "OUTPUT", "ĐƠN VỊ TÍNH", "CHẤT LƯỢNG", "TIÊU CHÍ CHẤT LƯỢNG", "SỐ LƯỢNG JOB QUY ĐỔI", "ĐƠN GIÁ", "GHI CHÚ", "NGÀY BẮT ĐẦU"];
+
+        headers.forEach(function (header) {
+            var th = document.createElement("th");
+            th.innerHTML = header;
+            headerRow.appendChild(th);
+        });
+
+        excelRows.forEach(function (row, index) {
+            var dataRow = table.insertRow(-1);
+            headers.forEach(function (header) {
+                var cell = dataRow.insertCell(-1);
+                if (header === "SỐ LƯỢNG JOB QUY ĐỔI" || header === "ĐƠN GIÁ") {
+                    // Định dạng cột số
+                    var value = parseFloat(row[header]) || 0; // Chuyển đổi giá trị sang số
+                    cell.innerHTML = value.toLocaleString('en-GB', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                } else if (header === "NGÀY BẮT ĐẦU") {
+                    // Định dạng cột ngày từ số dạng General
+                    var excelDate = parseFloat(row[header]); // Lấy giá trị dạng số
+                    if (!isNaN(excelDate)) {
+                        // Chuyển đổi số Excel thành ngày
+                        var date = new Date((excelDate - 25569) * 86400 * 1000); // Excel Epoch to JS Date
+                        var formattedDate = date.toLocaleDateString('en-GB', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric'
+                        });
+                        cell.innerHTML = formattedDate;
+                    } else {
+                        cell.innerHTML = row[header] || ""; // Hiển thị giá trị gốc nếu không hợp lệ
+                    }
+                } else {
+                    cell.innerHTML = row[header] || "";
+                }
+            });
+        });
+
+        var dvExcel_KhungTab = document.getElementById("dvExcel_KhungTab");
+        dvExcel_KhungTab.innerHTML = "";
+        dvExcel_KhungTab.appendChild(table);
+        document.getElementById("modal_khung_2_status").value = "non-save"
+    }
+
+
+    function modal_khung_3_ImportDataTab() {
+
+        // Hiển thị spinner modal khi quá trình tải dữ liệu bắt đầu
+        $('#spinnerModal').modal('show');
+
+        // Kiểm tra nếu bảng dữ liệu đã tồn tại
+        var table = document.querySelector("#dvExcel_KhungTab table");
+        if (!table) {
+            alert("Bảng dữ liệu chưa được tạo! Vui lòng tải file Excel lên trước.");
+            return;
+
+        }
+
+        // Thu thập dữ liệu từ bảng
+        var data = modal_khung_3_GetDataFromTable();
+
+        if (data.length === 0) {
+            $('#spinnerModal').modal('hide');
+            alert("Bảng không có dữ liệu để nhập!");
+            return;
+
+        }
+
+        // Lấy cơ chế từ dropdown (nếu có)
+        var strCoChe = document.getElementById('modal_khung_2_khungCoChe_DropList').value;
+        if (!strCoChe.trim()) {
+            //$('#spinnerModal').modal('show'); // Đảm bảo spinner được ẩn khi không chọn cơ chế
+            alert("Hãy chọn khung cơ chế trước khi tiếp tục!");
+
+            $('#spinnerModal').modal('hide'); // Ẩn spinner sau khi người dùng bấm OK
+
+            return;
+        }
+
+        // Gửi dữ liệu tới server
+        google.script.run
+            .withSuccessHandler(function (strReturnServerUpload) {
+                // Ẩn spinner modal khi quá trình xử lý xong
+                $('#spinnerModal').modal('hide');
+
+                if (strReturnServerUpload === 'Success') {
+                    alert("Nhập dữ liệu thành công!");
+                    document.getElementById("dvExcel_KhungTab").innerHTML = ""; // Xóa bảng sau khi nhập xong
+
+                    // Chuyển sang tab 'tabKhungCoChe'
+                    openTab(null, 'tabKhungCoChe');
+
+                    // Gọi hàm 'modal_khung_3_ViewKhung()'
+                    modal_khung_3_ViewKhung();
+                } else {
+                    alert("Lỗi khi nhập dữ liệu: " + strReturnServerUpload);
+                }
+            })
+            .withFailureHandler(function (error) {
+                // Ẩn spinner modal khi có lỗi
+                $('#spinnerModal').modal('hide');
+                alert("Đã xảy ra lỗi khi gửi dữ liệu: " + error.message);
+            })
+            .pgKhung_GhiDataKhungVaoSheet(data, strCoChe);
+    }
+
+    function modal_khung_3_GetDataFromTable() {
+        // Lấy bảng từ DOM
+        var table = document.querySelector("#dvExcel_KhungTab table");
+        if (!table) {
+            alert("Bảng dữ liệu chưa được tạo!");
+            return;
+        }
+
+        // Thu thập dữ liệu từ bảng
+        var headers = [];
+        var rows = Array.from(table.rows);
+        rows[0].querySelectorAll("th").forEach(function (th) {
+            headers.push(th.textContent.trim());
+        });
+
+        var data = [];
+        rows.slice(1).forEach(function (row) {
+            var rowData = {};
+            row.querySelectorAll("td").forEach(function (cell, index) {
+                var header = headers[index];
+                rowData[header] = cell.textContent.trim(); // Lấy nội dung cell
+            });
+            data.push(rowData);
+        });
+
+        return data;
+    }
+
+    // Lắng nghe sự kiện nhấn nút "Close" của modal và xóa input file
+    $('#khungCoCheModal').on('hidden.bs.modal', function () {
+        $('#fileUploadTab_Khung').val('');
+    });
+    /**NHÓM HÀM DÙNG CHUNG*/
+
+    $(document).ready(function () {
+        $('#myTable').DataTable({
+            autoWidth: false, // Tự động điều chỉnh chiều rộng
+        });
+    });
+
+    function modal_khung_3_onFailure(error) {
+        $('#spinnerModal').modal('hide');
+        //console.log('Error: ' + error.message);
+        alert('Error: ' + error.message);
+    }
+
+
+
+
+    //PHẦN NÀY DÙNG CHO VIỆC UPLOAD VÀ VIEW KHUNG CƠ CHẾ
+    async function modal_khung_3_loadKhungCoChe(strCoChe) {
+        try {
+            // Reset cache trước khi tải dữ liệu mới
+            pg_general_3_cachedKhung_edit = null;
+
+            const response = await google.script.run.withSuccessHandler(function (data) {
+                if (Array.isArray(data) && data.length > 0) {
+                    pg_general_3_cachedKhung_edit = data;
+                    //console.log("Dữ liệu khung đã được lưu vào cache:", pg_general_3_cachedKhung_edit);
+                } else {
+                    console.warn("Không có dữ liệu hợp lệ từ server");
+                    pg_general_3_cachedKhung_edit = null;
+                }
+            }).withFailureHandler(function (error) {
+                console.error("Lỗi khi tải dữ liệu khung:", error);
+                pg_general_3_cachedKhung_edit = null;
+            }).modal_khung_1_viewKhungTheoCoChe(strCoChe);
+        } catch (error) {
+            console.error("Lỗi không mong muốn:", error);
+            pg_general_3_cachedKhung_edit = null;
+        }
+    }
+
+    function modal_khung_3_ViewKhung() {
+        $('#spinnerModal').modal('show'); // Hiển thị modal loading
+        var strCoChe = document.getElementById('modal_khung_2_khungCoChe_DropList').value
+        // Gọi hàm từ Google Apps Script và xử lý dữ liệu trả về
+        google.script.run.withSuccessHandler(function (data) {
+            // Gọi cả hai hàm createKhungCoChe và modal_khung_3_createKhungCoChe_dongia
+            modal_khung_3_createKhungCoChe_mota(data, strCoChe); // Hiển thị bảng mô tả
+            modal_khung_3_createKhungCoChe_dongia(data); // Hiển thị bảng đơn giá
+            $('#spinnerModal').modal('hide');
+        }).modal_khung_1_viewKhungTheoCoChe(strCoChe);
+    }
+    function modal_khung_3_createKhungCoChe_dongia(data) {
+        // Ghi log để kiểm tra dữ liệu đầu vào
+        //console.log('Dữ liệu đầu vào:', data);
+
+        const tableContainer_dongia = $('#khungCoChe_tabDonGia');
+        const spinnerModal = $('#spinnerModal');
+        //var strCoChe = document.getElementById('modal_khung_2_khungCoChe_DropList').value
+        // Kiểm tra dữ liệu
+        // Kiểm tra xem data có phải là một mảng hợp lệ không
+        if (Array.isArray(data) && data.length > 0) {
+            // Danh sách tiêu đề cột          
+            const headers_dongia =
+                ["STT", "NHÓM CÔNG VIỆC", "TÊN JOB", "ĐỘ KHÓ", "CHẤT LƯỢNG", "SỐ LƯỢNG JOB QUY ĐỔI", "ĐƠN GIÁ", "GHI CHÚ"];
+
+            // Tạo header
+            const tableHeader_dongia = `
+              <thead>
+                  <tr>
+                      ${headers_dongia.map(header => `<th>${header}</th>`).join('')}
+                  </tr>
+              </thead>
+          `;
+            // Tạo body cho bảng Đơn Giá
+            const tableBody_dongia = `
+              <tbody>
+                  ${data.map(row => `
+                      <tr>
+                          ${[
+                    //row[0], // ID,
+                    // STT, TÊN JOB, ĐỘ KHÓ,CHẤT LƯỢNG, ĐƠN GIÁ, GHI CHÚ, NGÀY BẮT ĐẦU, NGÀY HẾT HẠN
+                    row[1], row[2], row[3], row[4], row[8], row[10], row[11], row[12]
+                ].map(cell => `<td>${cell !== undefined ? cell : ''}</td>`).join('')}
+                      </tr>
+                  `).join('')}
+              </tbody>
+          `;
+
+            // Kết hợp header và body
+            const tableHtml_DonGia = `
+              <table class="table table-bordered" id="khungDataTable_dongia">
+                  ${tableHeader_dongia}
+                  ${tableBody_dongia}
+              </table>
+          `;
+
+            // Gán HTML vào container
+            tableContainer_dongia.html(tableHtml_DonGia);
+            // Khởi tạo DataTable
+
+            $('#khungDataTable_dongia').DataTable({
+                responsive: true,
+                autoWidth: false,
+                lengthMenu: [
+                    [10, 25, 50, 100, -1],
+                    [10, 25, 50, 100, "Tất cả"]
+                ],
+                pageLength: 50,
+                columnDefs: [
+                    {
+                        targets: [5, 6],
+                        className: 'all right-align',
+                        render: function (data, type, row) {
+                            if (type === 'display' || type === 'filter') {
+                                return data.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                            }
+                            return data;
+                        }
+                    },
+                    /*{
+                        targets: [7],
+                        visible: false,
+                        searchable: true,
+                    }*/
+                ],
+            });
+
+        } else {
+            tableContainer_dongia.html('<p>Không tìm thấy dữ liệu.</p>');
+        }
+
+        // Ẩn modal loading
+        // spinnerModal.modal('hide');
+
+    }
+
+    function modal_khung_3_createKhungCoChe_mota(data, strCoChe) {
+        const tableContainer_mota = $('#khungCoChe_tabMoTa');
+        const spinnerModal = $('#spinnerModal');
+        //const exportButton = $('#exportKhung_tab');
+
+        // Kiểm tra dữ liệu
+        if (Array.isArray(data) && data.length > 0) {
+            // Hàm chuyển đổi ngày từ dd/MM/yyyy thành yyyy-MM-dd
+            function formatDateToISO(dateString) {
+                const [day, month, year] = dateString.split("/").map(Number);
+                return new Date(year, month - 1, day).toISOString().split('T')[0];
+            }
+
+            // Hàm kiểm tra ngày hợp lệ
+            function isValidDate(dateString) {
+                const formattedDate = formatDateToISO(dateString);
+                const date = new Date(formattedDate);
+                return !isNaN(date.getTime());
+            }
+
+            // Xử lý dữ liệu, thay giá trị undefined hoặc null thành chuỗi rỗng
+            const sanitizedData = data.map(row =>
+                row.map((cell, index) => {
+                    if (index === 13) { // Cột "NGÀY BẮT ĐẦU"
+                        return cell && isValidDate(cell) ? formatDateToISO(cell) : "Không hợp lệ";
+                    }
+                    return cell !== undefined && cell !== null ? cell : '';
+                })
+            );
+
+            // Danh sách tiêu đề cột
+            const headers_mota = ["STT", "NHÓM CÔNG VIỆC", "TÊN JOB", "ĐỘ KHÓ", "MÔ TẢ", "OUTPUT", "ĐƠN VỊ TÍNH", "CHẤT LƯỢNG", "TIÊU CHÍ CHẤT LƯỢNG", "GHI CHÚ", "NGÀY BẮT ĐẦU", "ID"];
+
+            // Tạo header
+            const tableHeader_mota = `
+            <thead>
+                <tr>
+                    <th><input type="checkbox" id="select-all"> Chọn</th>
+                    ${headers_mota.map(header => `<th>${header}</th>`).join('')}
+                </tr>
+            </thead>
+        `;
+
+            // Tạo body
+            const tableBody_mota = `
+            <tbody>
+                ${sanitizedData.map(row => `
+                    <tr>
+                        <td><input type="checkbox" class="row-checkbox"></td>
+                        ${[
+                    row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9], row[12], row[13], row[0]
+                ].map(cell => `<td>${cell}</td>`).join('')}
+                    </tr>
+                `).join('')}
+            </tbody>
+        `;
+
+            // Kết hợp header và body
+            const tableHtml_mota = `
+            <table class="table table-bordered" id="khungDataTable_mota">
+                ${tableHeader_mota}
+                ${tableBody_mota}
+            </table>
+        `;
+
+            // Gán HTML vào container
+            tableContainer_mota.html(tableHtml_mota);
+
+            // Khởi tạo DataTable
+            $(document).ready(function () {
+                $('#khungDataTable_mota').DataTable({
+                    lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Tất cả"]],
+                    pageLength: 50,
+                    ordering: true,
+                    order: [[1, 'asc']],
+                    columnDefs: [
+                        /*{
+                            targets: [12],
+                            visible: false,
+                            searchable: true,
+                        }*/
+                    ],
+                    dom: '<"toolbar">lfrtip',
+                    initComplete: function () {
+                        $('div.toolbar').html(`
+                      <button id="submitExpiryDateButton" class="btn" style="background-color: #E0FFFA; color: #00697F;">✔️ Xác nhận job hết hiệu lực</button>
+                      
+                      <button id="exportToExcelButton" class="btn btn-success btn-outline-light" title="Tải Khung Excel"><i class="fas fa-file-export"></i> Tải Khung Excel <i class="fas fa-file-excel"></i></button>
+                  `);
+
+                        $('#submitExpiryDateButton').on('click', function () {
+                            var expiryDate = prompt("Nhập ngày hết hạn (dd/MM/yyyy):");
+
+                            if (expiryDate) {
+                                const formattedDate = formatDateToISO(expiryDate);
+                                if (!formattedDate || !isValidDate(expiryDate)) {
+                                    alert("Ngày không hợp lệ. Vui lòng nhập lại.");
+                                    return;
+                                }
+
+                                var ids = [];
+                                $('#khungDataTable_mota tbody input[type="checkbox"]:checked').each(function () {
+                                    var row = $(this).closest('tr');
+                                    var id = row.find('td').eq(12).text();
+                                    //console.log(id)
+                                    ids.push(id);
+                                });
+
+                                if (ids.length > 0) {
+                                    google.script.run.withSuccessHandler(function (response) {
+
+                                        alert("Dữ liệu đã được ghi vào Data", response);
+                                        modal_khung_3_ViewKhung();
+                                    }).updateExpiryDateInGoogleSheet(ids, expiryDate, strCoChe);
+                                } else {
+                                    alert("Vui lòng chọn ít nhất một dòng.");
+                                }
+                            } else {
+                                alert("Vui lòng nhập ngày hết hạn.");
+                            }
+                        });
+                        // Xử lý nút Export to Excel
+                        $('#exportToExcelButton').on('click', function () {
+                            exportKhungToExcel(data, 'Khung cơ chế - ' + strCoChe);
+                        });
+                    }
+                });
+            });
+
+            // Gán lại sự kiện cho checkbox sau khi DataTable vẽ lại bảng
+            $('#khungDataTable_mota').on('draw.dt', function () {
+                $('#select-all').on('change', function () {
+                    const isChecked = $(this).is(':checked');
+                    $('.row-checkbox').prop('checked', isChecked);
+                });
+
+                $('.row-checkbox').on('change', function () {
+                    const allChecked = $('.row-checkbox').length === $('.row-checkbox:checked').length;
+                    $('#select-all').prop('checked', allChecked);
+                });
+            });
+        } else {
+            tableContainer_mota.html('<p>Không tìm thấy dữ liệu.</p>');
+        }
+
+        // Ẩn modal loading
+        //spinnerModal.modal('hide');
+
+    }
+
+
+    // Hàm để xuất toàn bộ dữ liệu từ mảng thành tệp Excel
+    function exportKhungToExcel(data, filename = 'exported_data') {
+        // Tạo một workbook mới
+        var wb = XLSX.utils.book_new();
+
+        // Tạo tiêu đề cho bảng Excel
+        const header = ["ID", "STT", "NHÓM CÔNG VIỆC", "TÊN JOB", "ĐỘ KHÓ", "MÔ TẢ", "OUTPUT", "ĐƠN VỊ TÍNH", "CHẤT LƯỢNG", "TIÊU CHÍ CHẤT LƯỢNG", "SỐ LƯỢNG JOB QUY ĐỔI", "ĐƠN GIÁ", "GHI CHÚ", "NGÀY BẮT ĐẦU"];
+
+        // Chuyển mảng `data` thành định dạng mà SheetJS yêu cầu
+        const excelData = [header, ...data];
+
+        // Tạo một worksheet từ mảng `excelData`
+        var ws = XLSX.utils.aoa_to_sheet(excelData);
+
+        // Thêm worksheet vào workbook
+        XLSX.utils.book_append_sheet(wb, ws, 'Khung cơ chế');
+
+        // Xuất tệp Excel
+        XLSX.writeFile(wb, filename + '.xlsx');
+    }
+
+    function pg_general_3_ExportKhung(dataArray) {
+        //console.log(dataArray);
+
+        if (!Array.isArray(dataArray)) {
+            console.error("Dữ liệu không phải là một mảng hoặc không tồn tại!");
+            $('#spinnerModal').modal('hide');
+            document.getElementById("message").innerHTML = "<p>Dữ liệu không hợp lệ!</p>";
+            return;
+        }
+
+        document.getElementById("message").innerHTML = "";
+        $('#spinnerModal').modal('hide');
+
+        var messageDiv = document.getElementById("message");
+        messageDiv.innerHTML = "<p>Đang tải tệp Excel...</p>";
+        // Ẩn thông báo sau 5 giây
+        setTimeout(function () {
+            messageDiv.innerHTML = "";
+        }, 5000);
+
+        // Gọi trực tiếp hàm downloadExcel để tải tệp tự động
+        downloadExcel(dataArray);
+    }
+</script>

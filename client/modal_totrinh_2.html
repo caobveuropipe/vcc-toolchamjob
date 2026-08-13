@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+
+
+  <style>
+    #modal_totrinh_2_Modal {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+
+    #modal_totrinh_2_Modal .document-container {
+      max-width: 800px;
+      margin: auto;
+      border: 1px solid #ccc;
+      padding: 20px;
+      background: #fff;
+    }
+
+    #modal_totrinh_2_Modal .document-header {
+      text-align: center;
+    }
+
+    /* Thêm rule này: khối con ở giữa, chữ canh trái */
+    #modal_totrinh_2_Modal .document-header .header-center {
+      display: table;
+      text-align: center;
+      margin: 0;
+      /* đề phòng trường hợp không thừa hưởng căn giữa từ cha */
+      /* tùy chọn: khống chế bề rộng theo nội dung */
+      /* width: fit-content;  (nếu trình duyệt support) */
+    }
+
+    /* gọn khoảng cách 2 dòng (tuỳ chọn) */
+    #modal_totrinh_2_Modal .document-header .header-center p {
+      margin: 0;
+      line-height: 1.25;
+    }
+
+    #modal_totrinh_2_Modal .table-bordered td,
+    #modal_totrinh_2_Modal .table-bordered th {
+      border: 1px solid #000;
+      text-align: center;
+    }
+
+    #modal_totrinh_2_Modal .signature {
+      margin-top: 50px;
+      display: flex;
+      justify-content: space-between;
+      text-align: center;
+    }
+
+    #modal_totrinh_2_Modal .signature div {
+      width: 18%;
+    }
+
+    #modal_totrinh_2_Modal .signature-date {
+      text-align: right;
+      font-weight: bold;
+      margin-bottom: 10px;
+      /* Tạo khoảng cách với phần chữ ký */
+    }
+
+    /* Chỉ áp dụng cho Select2 bên trong modal #modal_totrinh_2_Modal */
+    #modal_totrinh_2_Modal .select2-container--bootstrap-5 .select2-selection__clear {
+      position: absolute;
+      left: 10px;
+      /* Điều chỉnh khoảng cách với lề trái */
+      right: auto;
+      margin-left: 10px;
+      /* Tạo thêm khoảng trống */
+    }
+
+    /* Dịch phần text sang phải để tránh đè lên nút clear */
+    #modal_totrinh_2_Modal .select2-container--bootstrap-5 .select2-selection__rendered {
+      padding-left: 15px !important;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="modal fade fade full-screen-modal" id="modal_totrinh_2_Modal" tabindex="-1" aria-hidden="true"
+    data-bs-backdrop="static">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="me-3" style="font-weight: bold; color: #00695c">TỜ TRÌNH HIỆU SUẤT</h4>
+          <div class="row" style="display: none;">
+            <select class="btn form-select"
+              style="width: auto; text-align: center; text-align-last: center; background-color: #ffffff"
+              id="modal_totrinh_2_loaiToTrinh" title="Chọn loại tờ trình">
+              <option value="toTrinh_hieuSuat">Tờ trình hiệu suất</option>
+              <option value="toTrinh_thuong">Tờ trình thưởng</option>
+            </select>
+          </div>
+          <div class="row" style="display: none;">
+            <select id="modal_totrinh_2_kyluong" class="form-select text-center" style="width: auto; display: none;"
+              title="Kỳ lương">
+              <option value="" disabled selected>Kỳ lương</option>
+            </select>
+          </div>
+          <div class="row" style="display: none;">
+            <select id="modal_totrinh_2_kynt" class="form-select text-center" style="width: auto; display: none;"
+              title="Kỳ nghiệm thu">
+              <option value="" disabled selected>Kỳ nghiệm thu</option>
+            </select>
+          </div>
+          <button type="button" class="btn btn-success" id="modal_totrinh_2_exportExcel_html"
+            onclick="modal_totrinh_3_exportExcel_HTML()" title="Xuất Excel (không cần CDN)">
+            <i class="fas fa-file-excel"></i> Xuất Excel (.xls)
+          </button>
+
+          <button type="button" class="btn btn-info btn-outline-light" id="modal_totrinh_2_loadDocument"
+            onclick="modal_totrinh_3_loadDocument();" title="Tải tờ trình" style="display: none;"><i
+              class="fas fa-file-download"></i> Tải tờ trình</button>
+          <button type="button" class="btn btn-info btn-outline-light" id="modal_totrinh_2_print"
+            onclick="modal_totrinh_3_printModalBody('modal_totrinh_2_Modal')" title="in tờ trình"><i
+              class="fas fa-print"></i> In tờ trình</button>
+          <button type="button" class="btn btn-primary" id="modal_totrinh_2_sendEmail"
+            onclick="modal_totrinh_3_sendEmail()" title="Gửi email">
+            <i class="fas fa-envelope"></i> Gửi Email
+          </button>
+          <button type="button" class="btn-close" aria-label="Close" data-bs-dismiss="modal"
+            title="Đóng tờ trình"></button>
+        </div>
+        <div class="modal-body">
+          <div class="document-container">
+            <div class="document-header">
+              <div class="header-center">
+                <p>CÔNG TY CP VCCORP</p>
+                <p>Kỳ lương: <span id="kyLuong"></span></p>
+              </div>
+
+              <br>
+              <h4>TỜ TRÌNH <span id="loaiToTrinh"></span> </h4>
+              <h5>Bộ phận: <span id="boPhan"></span> -Khối: <span id="khoi"></span></h5>
+              <br>
+              <p style="text-align: left;">Kính gửi: Ban giám đốc và phòng HCNS</p>
+              <p style="text-align: left;">Người đề nghị: <span id="nguoiDeNghi"></span> - Bộ phận Chính sách lương</p>
+              <p style="text-align: left;">Kính đề nghị Ban Giám Đốc phê duyệt thanh toán hiệu suất công việc cho các
+                nhân sự bộ phận <span id="boPhan_dong2"></span> theo thông tin sau:</p>
+              <p style="text-align: left;">Thời gian nghiệm thu: <span id="thoiGianNghiemThu"></span></p>
+
+            </div>
+
+            <table class="table table-bordered">
+              <thead id="modal_totrinh_2_header"></thead>
+              <tbody id="modal_totrinh_2_dataTable"></tbody>
+            </table>
+
+            <div class="signature-date">
+              <span id="modal_totrinh_2_ngay"></span>
+            </div>
+
+            <div class="signature">
+              <div>Người lập<br>(Ký, họ tên)<br><br><br><br><br><span id="modal_totrinh_2_sig_nguoilap"></span></div>
+              <div>Phụ trách BP<br>(Ký, họ tên)<br><br><br><br><br><span id="modal_totrinh_2_sig_leader"></span></div>
+              <div>Trưởng BP CCL<br>(Ký, họ tên)<br><br><br><br><br><span id="modal_totrinh_2_sig_CCL_leader"></span>
+              </div>
+              <div>Lãnh đạo khối<br>(Ký, họ tên)<br><br><br><br><br><span id="modal_totrinh_2_sig_BODKhoi"></span></div>
+              <div>Lãnh đạo phê duyệt<br>(Ký, họ tên)<br><br><br><br><br><span id="modal_totrinh_2_sig_tongGD"></span>
+              </div>
+            </div>
+
+
+
+          </div>
+          <div class="modal-footer">
+            <!--<button type="button" class="btn btn-info btn-outline-light" id="modal_totrinh_2_print" onclick="modal_totrinh_3_printModalBody('modal_totrinh_2_Modal')" title="in tờ trình"><i class="fas fa-print"></i> In tờ trình</button>
+        <button type="button" class="btn btn-danger" data-bs-dismiss="modal" title="Đóng tờ trình">Close</button> -->
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+</body>
+
+</html>

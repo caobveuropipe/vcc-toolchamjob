@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <base target="_top">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- ✅ BỔ SUNG/ĐẢM BẢO CÁC THƯ VIỆN UI CÓ MẶT -->
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- jQuery + Bootstrap Bundle JS (để modal, sticky, dropdown hoạt động) -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Font Awesome (icons) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+
+  <?!= include('generalLibrary'); ?>
+  <?!= include('pg_general_3'); ?>
+  <?!= include('modal_UpDataChiTiet_3'); ?>
+  <?!= include('modal_khung_3'); ?>
+  <?!= include('modal_tonghophieusuat_3'); ?>
+  <?!= include('modal_Form_3'); ?>
+  <?!= include('modal_taoData_3'); ?>
+  <?!= include('modal_totrinh_3'); ?>
+  <?!= include('modal_phanquyen_3'); ?>
+  <?!= include('Stylecss'); ?>
+
+  <style>
+    :root {
+      --brand: #00695c;
+      --brand-600: #0a7f71;
+      --muted: #6c757d;
+      --bg: #f7f9fb;
+      --card: #ffffff;
+      --radius: 12px;
+      --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      --sidebar-w: 64px;
+      --sidebar-w-lg: 190px;
+      --header-h: 64px;
+      --scrollbar-size: 6px;
+    }
+
+    /* Reset & Basics */
+    html,
+    body {
+      height: 100vh;
+      height: 100dvh;
+      background: var(--bg);
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      overflow: hidden;
+    }
+
+    *::-webkit-scrollbar {
+      width: var(--scrollbar-size);
+      height: var(--scrollbar-size);
+    }
+
+    *::-webkit-scrollbar-thumb {
+      background: #ccc;
+      border-radius: 10px;
+    }
+
+    *::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    /* Layout Structure */
+    .app-shell {
+      display: flex;
+      height: 100vh;
+      height: 100dvh;
+      width: 100vw;
+      overflow: hidden;
+    }
+
+    .app-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      margin-left: 0;
+      transition: margin-left 0.3s ease;
+      overflow-x: hidden;
+    }
+
+    /* Main Page Content Padding */
+    .main-content {
+      padding-top: calc(var(--header-h) + 0.5rem);
+      padding-bottom: 0.5rem;
+      height: 100vh;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
+
+    /* Table Responsive Container */
+    .table-responsive {
+      border-radius: 8px;
+      overflow-x: hidden !important;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      height: 100vh;
+      height: 100dvh;
+      width: var(--sidebar-w-lg);
+      background: #fff;
+      box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+      z-index: 1050;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: transform 0.3s ease, width 0.3s ease;
+    }
+
+    @media (max-width: 991px) {
+      .sidebar {
+        transform: translateX(-100%);
+      }
+
+      .sidebar.is-open {
+        transform: translateX(0);
+      }
+    }
+
+    @media (min-width: 992px) {
+      .app-shell.is-collapsed .sidebar {
+        width: var(--sidebar-w);
+      }
+
+      .app-shell.is-collapsed .sidebar .lbl {
+        display: none !important;
+      }
+
+      .app-shell.is-collapsed .sidebar .btn {
+        justify-content: center;
+        padding-left: 0;
+        padding-right: 0;
+      }
+
+      .app-shell.is-collapsed .sidebar .icon {
+        margin: 0 !important;
+      }
+    }
+
+    .sidebar-head {
+      height: var(--header-h);
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 12px;
+      padding: 0 1rem;
+      border-bottom: 1px solid #eee;
+      flex-shrink: 0;
+    }
+
+    .sidebar .nav {
+      padding: 0.5rem;
+      gap: 2px;
+      overflow-y: scroll !important;
+      overflow-x: hidden !important;
+      flex: 1;
+      min-height: 0;
+      box-sizing: border-box;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
+      display: flex;
+      flex-direction: column;
+      flex-wrap: nowrap;
+    }
+
+    .sidebar .nav::-webkit-scrollbar {
+      width: 4px;
+    }
+    .sidebar .nav::-webkit-scrollbar-thumb {
+      background: #ccc;
+      border-radius: 4px;
+    }
+
+    .sidebar .nav .lbl-heading {
+      font-size: 0.7rem !important;
+      letter-spacing: 0.5px;
+    }
+
+    .sidebar .nav .btn {
+      display: flex !important;
+      align-items: center !important;
+      gap: 8px !important;
+      width: 100%;
+      text-align: left;
+      padding: 6px 10px;
+      font-size: 0.82rem !important;
+      border-radius: 6px;
+      color: #444 !important;
+      font-weight: 500;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+      background: transparent;
+      white-space: nowrap;
+    }
+
+    .sidebar .nav .btn:hover {
+      background: rgba(0, 105, 92, 0.05);
+      color: var(--brand) !important;
+    }
+
+    .sidebar .nav .btn.active {
+      background: rgba(0, 105, 92, 0.08);
+      color: var(--brand) !important;
+      border-color: rgba(0, 105, 92, 0.1);
+    }
+
+    .sidebar .icon {
+      font-size: 0.9rem;
+      color: var(--brand) !important;
+      min-width: 20px;
+      display: flex;
+      justify-content: center;
+    }
+
+    /* Main Content Area */
+    .app-main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      margin-left: 0;
+      transition: margin-left 0.3s ease;
+    }
+
+    @media (min-width: 992px) {
+      .app-main {
+        margin-left: var(--sidebar-w-lg);
+      }
+
+      .app-shell.is-collapsed .app-main {
+        margin-left: var(--sidebar-w);
+      }
+    }
+
+    /* Header Bar */
+    .app-bar {
+      position: fixed;
+      top: 0;
+      right: 0;
+      left: 0;
+      height: auto;
+      min-height: var(--header-h);
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      z-index: 1040;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      align-items: center;
+      transition: left 0.3s ease;
+      padding: 0.5rem 0;
+    }
+
+    @media (min-width: 992px) {
+      .app-bar {
+        left: var(--sidebar-w-lg);
+      }
+
+      .app-shell.is-collapsed .app-bar {
+        left: var(--sidebar-w);
+      }
+    }
+
+    .brand-title {
+      color: var(--brand);
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+
+    /* Mobile Toggle */
+    #mobileToggle,
+    #sidebarToggleDesk {
+      background: none;
+      border: none;
+      color: var(--brand);
+      font-size: 1.2rem;
+      padding: 0.5rem;
+      cursor: pointer;
+    }
+
+    @media (min-width: 992px) {
+      #mobileToggle {
+        display: none;
+      }
+    }
+
+    @media (max-width: 991px) {
+      #sidebarToggleDesk {
+        display: none;
+      }
+    }
+
+    /* Filters Layout */
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .filters .form-select {
+      min-width: 120px;
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 768px) {
+      .filters .form-select {
+        flex: 1 1 calc(50% - 8px);
+        min-width: 100px;
+      }
+
+      .brand-title {
+        font-size: 0.9rem;
+      }
+    }
+
+    /* Backdrop */
+    .sidebar-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.3);
+      z-index: 1045;
+      display: none;
+    }
+
+    .sidebar-backdrop.is-active {
+      display: block;
+    }
+
+    @media (max-width: 768px) {
+      .main-content {
+        padding-top: 130px;
+        /* Space for wrapped filters */
+      }
+    }
+
+    /* Card Styling */
+    .data-card {
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1px solid #eee;
+      background: #fff;
+    }
+
+    /* Table Responsive */
+    .table-responsive {
+      border-radius: 8px;
+    }
+
+    /* Back to Top/Bottom */
+    #backToTop,
+    #backToBottom {
+      position: fixed;
+      right: 1.5rem;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--brand);
+      color: #fff;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+      z-index: 1000;
+      border: none;
+    }
+
+    #backToTop {
+      bottom: 80px;
+    }
+
+    #backToBottom {
+      bottom: 20px;
+    }
+
+    /* Hide elements by permission */
+    #pg_general_ToTrinh,
+    #pg_general_PhanQuyen {
+      display: none !important;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+  <div class="app-shell" id="appShell">
+
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-head">
+        <button id="sidebarToggleDesk" title="Thu gọn/Mở rộng">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        <span class="brand-title"></span>
+        <button class="btn btn-sm d-lg-none" id="closeSidebar" title="Đóng menu">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <nav class="nav flex-column">
+        <a href="https://script.google.com/a/macros/vccorp.vn/s/AKfycbwVa60D0lQr3q1gE-nL0LNSOMcwo9Fc-v4CSzyv1Tj2Ix7B38rduj_f3aP7yjxcEPWs/exec"
+          class="btn" aria-label="Trang chủ">
+          <i class="fa-solid fa-house icon"></i>
+          <span class="lbl"> Trang chủ</span>
+        </a>
+
+        <div class="small fw-bold text-muted px-3 mt-2 mb-1 lbl lbl-heading">CHỨC NĂNG</div>
+
+        <button class="btn" id="upload" title="Upload data hiệu suất" onclick="modal_UpDataChiTiet_3_showModal();">
+          <i class="fas fa-cloud-upload-alt icon"></i><span class="lbl"> Upload HS</span>
+        </button>
+
+        <button class="btn" id="tongHopHieuSuat_ID" title="Tổng hợp hiệu suất" onclick="pg_general_3_showSum();">
+          <i class="fa-solid fa-calculator icon"></i><span class="lbl"> Tổng hợp</span>
+        </button>
+
+        <button class="btn" title="Bộ lọc" onclick="pg_general_3_showFilter();">
+          <i class="fa-solid fa-filter icon"></i><span class="lbl"> Bộ lọc</span>
+        </button>
+        <button class="btn" title="Tổng hợp nhanh" onclick="pg_general_3_showQuickSum();">
+          <i class="fas fa-bolt icon"></i><span class="lbl"> Tổng nhanh</span>
+        </button>
+        <button class="btn" title="So sánh pivot hiệu suất" onclick="modamodal_soSanh_2_showModal();">
+          <i class="fa-solid fa-code-compare icon"></i><span class="lbl"> So sánh</span>
+        </button>
+
+        <div class="small fw-bold text-muted px-3 mt-2 mb-1 lbl lbl-heading">CẤU HÌNH</div>
+
+        <button class="btn" id="viewKhung" title="Xem chi tiết khung hiệu suất">
+          <i class="fa-solid fa-border-all icon"></i><span class="lbl"> Khung chấm job</span>
+        </button>
+        <button class="btn" id="reloadKhung_home" onclick="modal_khung_3_Reload()" title="Load lại danh sách khung">
+          <i class="fas fa-sync-alt icon"></i><span class="lbl"> Reload Khung</span>
+        </button>
+        <button class="btn" id="pg_general_ToTrinh" onclick="modal_totrinh_3_ShowModal()" title="Tạo tờ trình"
+          style="display:none;">
+          <i class="fa-solid fa-file-invoice icon"></i><span class="lbl"> Tờ trình</span>
+        </button>
+        <button class="btn" id="pg_general_PhanQuyen" onclick="modal_phanquyen_3_showModal()" title="Phân quyền / Setup"
+          style="display: none;">
+          <i class="fas fa-user-cog icon"></i><span class="lbl"> Setup</span>
+        </button>
+        <button class="btn" id="pg_general_2_btn_InputHS" title="Thêm một dòng hiệu suất"
+          onclick="modal_Form_3_showModal();" disabled>
+          <i class="fa-solid fa-plus-circle icon"></i><span class="lbl"> Thêm dòng</span>
+        </button>
+      </nav>
+    </aside>
+
+    <div class="app-main">
+      <header class="app-bar">
+        <div class="container-fluid">
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2">
+              <button id="mobileToggle" title="Menu">
+                <i class="fa-solid fa-bars"></i>
+              </button>
+              <h5 class="brand-title mb-0 d-none d-sm-block"> DATA HIỆU SUẤT V2.1</h5>
+              <h5 class="brand-title mb-0 d-sm-none">V2.1</h5>
+            </div>
+
+            <div class="filters">
+              <input type="text" class="form-control d-none" id="pg_general_2_status" name="pg_general_2_status"
+                value="new" />
+              <select class="form-select text-center" id="coChe_DropList" title="Chọn cơ chế">
+                <option value="">Cơ chế</option>
+              </select>
+              <select class="form-select text-center d-none d-md-block" id="khoi_DropList" title="Chọn khối">
+                <option value="">Khối</option>
+              </select>
+              <select class="form-select text-center" id="tuThang_DropList" title="Từ tháng">
+                <option value="" disabled selected>Từ tháng</option>
+              </select>
+              <select class="form-select text-center" id="denThang_DropList" title="Đến tháng">
+                <option value="" disabled selected>Đến tháng</option>
+              </select>
+              <button class="btn btn-info text-white" id="xemHieuSuat" title="Xem hiệu suất">
+                <i class="fa-solid fa-search"></i> <span class="d-none d-lg-inline">Xem</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="main-content container-fluid">
+        <div class="card data-card">
+          <?!= include('pg_general_6_Filter'); ?>
+          <?!= include('pg_general_5_QuickSum'); ?>
+
+          <div class="card-body p-2 p-sm-3">
+            <div id="dataTableHieuSuat_div" class="table-responsive">
+              <table id="dataTableHieuSuat"
+                class="table table-sm table-striped table-hover table-bordered w-100 display">
+              </table>
+            </div>
+            <div id="errorMessage" class="text-danger text-center fw-bold mt-2"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+
+  <?!= include('modal_Form_2'); ?>
+  <?!= include('modal_UpDataChiTiet_2'); ?>
+  <?!= include('modal_UploadMultiple'); ?>
+  <?!= include('modal_tonghophieusuat_2'); ?>
+  <?!= include('modal_khung_2'); ?>
+  <?!= include('modal_taoData_2'); ?>
+  <?!= include('modal_totrinh_2'); ?>
+  <?!= include('modal_phanquyen_2'); ?>
+  <?!= include('modal_soSanh_2'); ?>
+
+  <?!= include('ele_toast_2'); ?>
+  <?!= include('SpinnerModal'); ?>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <button class="btn" id="backToTop" title="Về đầu trang"><i class="fa fa-chevron-up"></i></button>
+  <button class="btn" id="backToBottom" title="Về cuối trang"><i class="fa fa-chevron-down"></i></button>
+
+  <script>
+    /* Bootstrap 5 ⇔ jQuery adapter */
+    (function bs5JqueryModalAdapter() {
+      var $ = window.jQuery; var bs = window.bootstrap;
+      if (!$ || !bs) return;
+      if (!$.fn.modal) {
+        $.fn.modal = function (arg) {
+          return this.each(function () {
+            var el = this;
+            var options = (typeof arg === 'object' && arg) || {};
+            if (el.id === 'spinnerModal') {
+              options.backdrop = 'static';
+              options.keyboard = false;
+            }
+            var inst = bs.Modal.getInstance(el);
+            if (!inst) inst = new bs.Modal(el, options);
+            if (arg === 'show' || arg === undefined) inst.show();
+            else if (arg === 'hide') inst.hide();
+            else if (arg === 'toggle') inst.toggle();
+          });
+        };
+      }
+    })();
+
+    // Sidebar Toggle Logic
+    (function sidebarManager() {
+      const shell = document.getElementById('appShell');
+      const sidebar = document.getElementById('sidebar');
+      const backdrop = document.getElementById('sidebarBackdrop');
+
+      const toggleDesk = document.getElementById('sidebarToggleDesk');
+      const toggleMob = document.getElementById('mobileToggle');
+      const closeMob = document.getElementById('closeSidebar');
+
+      // Desktop toggle
+      if (toggleDesk) {
+        toggleDesk.addEventListener('click', () => {
+          shell.classList.toggle('is-collapsed');
+        });
+      }
+
+      // Mobile toggles
+      function openMobileSidebar() {
+        sidebar.classList.add('is-open');
+        backdrop.classList.add('is-active');
+        document.body.style.overflow = 'hidden'; // Prevent background scroll
+      }
+
+      function closeMobileSidebar() {
+        sidebar.classList.remove('is-open');
+        backdrop.classList.remove('is-active');
+        document.body.style.overflow = '';
+      }
+
+      if (toggleMob) toggleMob.addEventListener('click', openMobileSidebar);
+      if (closeMob) closeMob.addEventListener('click', closeMobileSidebar);
+      if (backdrop) backdrop.addEventListener('click', closeMobileSidebar);
+
+      // Auto close sidebar on mobile when window resized to desktop
+      window.addEventListener('resize', () => {
+        if (window.innerWidth >= 992) {
+          closeMobileSidebar();
+        }
+      });
+    })();
+
+    // Hành vi back-to-top/bottom
+    window.addEventListener('scroll', () => {
+      const topBtn = document.getElementById('backToTop');
+      const btmBtn = document.getElementById('backToBottom');
+      const st = document.documentElement.scrollTop || document.body.scrollTop;
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      if (topBtn) topBtn.style.display = st > 100 ? 'flex' : 'none';
+      if (btmBtn) btmBtn.style.display = st < max - 100 ? 'flex' : 'none';
+    });
+    const elTop = document.getElementById('backToTop');
+    if (elTop) elTop.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+    const elBtm = document.getElementById('backToBottom');
+    if (elBtm) elBtm.onclick = () => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+
+    // Đổi style nút Xem khi bộ lọc đủ điều kiện
+    const xemBtn = document.getElementById('xemHieuSuat');
+    ['coChe_DropList', 'khoi_DropList', 'tuThang_DropList', 'denThang_DropList'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('change', () => {
+          if (!xemBtn) return;
+          const coCheVal = document.getElementById('coChe_DropList')?.value;
+          const tuThangVal = document.getElementById('tuThang_DropList')?.value;
+          const denThangVal = document.getElementById('denThang_DropList')?.value;
+          const ok = !!(coCheVal && tuThangVal && denThangVal);
+          xemBtn.classList.toggle('btn-info', ok);
+          xemBtn.classList.toggle('btn-outline-info', !ok);
+        });
+      }
+    });
+
+    // Gắn hành vi nút Xem
+    (function () {
+      if (!xemBtn) return;
+      const debugEl = document.getElementById('dtDebug');
+      function setDebug(msg) { if (debugEl) { debugEl.textContent = msg; } }
+
+      xemBtn.addEventListener('click', (e) => {
+        const err = document.getElementById('errorMessage');
+
+        // Alt + Click => Dựng bảng mẫu
+        if (e.altKey && typeof window.pg_general_3_createTable === 'function') {
+          const sample = [
+            ['Họ tên', 'Team', 'Cơ chế', 'Loại cơ chế', 'Nhóm việc', 'Tên job', 'Diễn giải', 'Kết quả', 'Win/Fail', 'Hiệu suất', 'Phân quyền'],
+            ['Nguyễn A', 'Team 1', 'C1', 'L1', 'Nhóm X', 'Job 1', 'Mô tả 1', 'OK', 'WIN', 100, 'ALL'],
+            ['Trần B', 'Team 2', 'C2', 'L2', 'Nhóm Y', 'Job 2', 'Mô tả 2', 'OK', 'FAIL', 50, 'EDIT']
+          ];
+          try { window.pg_general_3_createTable(sample); setDebug('Đã dựng bảng mẫu (Alt+Xem).'); err && (err.textContent = ''); }
+          catch (ex) { console.error(ex); err && (err.textContent = 'Lỗi khi dựng bảng mẫu.'); }
+          return;
+        }
+
+        function destroyDataTable() {
+          const $table = $('#dataTableHieuSuat');
+          if ($.fn.DataTable && $.fn.DataTable.isDataTable($table)) {
+            $table.DataTable().destroy();
+            $table.empty();
+            console.log('✅ DataTable cũ đã được hủy/xóa rỗng.');
+          }
+        }
+
+        if (typeof window.pg_general_3_XemHieuSuatChiTiet === 'function') {
+          try {
+            destroyDataTable();
+            setDebug('Đang tải dữ liệu...');
+            window.pg_general_3_XemHieuSuatChiTiet();
+            if (err) err.textContent = '';
+          } catch (e) {
+            console.error(e);
+            if (err) err.textContent = 'Lỗi khi chạy pg_general_3_XemHieuSuatChiTiet(). Xem console để biết chi tiết.';
+            if (window.Swal) Swal.fire({ icon: 'error', title: 'Lỗi', text: 'Không thể tải dữ liệu. Vui lòng xem console.', timer: 2600, showConfirmButton: false });
+            setDebug('');
+            return;
+          }
+
+          setTimeout(() => {
+            const hasHead = document.querySelectorAll('#dataTableHieuSuat thead th').length;
+            const hasRows = document.querySelectorAll('#dataTableHieuSuat tbody tr').length;
+            if (!hasHead && !hasRows) {
+              setDebug('');
+            } else {
+              setDebug(`Đã render: ${hasRows} dòng, ${hasHead} cột.`);
+            }
+          }, 400);
+        } else {
+          console.warn('Không tìm thấy pg_general_3_XemHieuSuatChiTiet trên window.');
+          if (err) err.textContent = 'Thiếu hàm pg_general_3_XemHieuSuatChiTiet trong include(pg_general_3).';
+          if (window.Swal) Swal.fire({ icon: 'info', title: 'Thiếu hàm', text: 'Vui lòng định nghĩa pg_general_3_XemHieuSuatChiTiet trong include(pg_general_3).', timer: 2600, showConfirmButton: false });
+          setDebug('');
+        }
+      });
+    })();
+
+    // Nút xem khung
+    (function () {
+      const btn = document.getElementById('viewKhung');
+      if (!btn) return;
+      btn.addEventListener('click', () => {
+        if (typeof modal_khung_3_ShowModal === 'function') {
+          modal_khung_3_ShowModal();
+        } else {
+          console.info('skip: modal_khung_3_ShowModal() chưa được include trong môi trường này.');
+          if (window.Swal) Swal.fire({ icon: 'info', title: 'Khung', text: 'Hàm mở thẻ Khung chưa có trong sandbox. Kiểm tra include(modal_khung_3).', timer: 2300, showConfirmButton: false });
+        }
+      });
+    })();
+
+    // Smoke tests (giữ như cũ)
+    (function smokeTests() { /* ... giữ nguyên như bản của bạn nếu cần ... */ })();
+
+    // Wrapper createTable
+    (function wrapCreateTable() {
+      const debugEl = document.getElementById('dtDebug');
+      function setDebug(msg) { if (debugEl) { debugEl.textContent = msg; } }
+      const tryWrap = () => {
+        if (typeof window.pg_general_3_createTable === 'function' && !window.__CREATE_WRAPPED__) {
+          const _orig = window.pg_general_3_createTable;
+          window.pg_general_3_createTable = function (dataArray) {
+            try {
+              _orig.apply(this, arguments);
+              try { $('#spinnerModal').modal('hide'); } catch (_) { }
+              const hasHead = document.querySelectorAll('#dataTableHieuSuat thead th').length;
+              const hasRows = document.querySelectorAll('#dataTableHieuSuat tbody tr').length;
+              //setDebug(`Render xong: DOM=${hasRows} dòng/${hasHead} cột.`);
+            } catch (err) {
+              console.error('createTable wrapper error:', err);
+              setDebug('Lỗi trong createTable. Xem console.');
+            } finally {
+              window.__CREATE_WRAPPED__ = true;
+            }
+          };
+        }
+      };
+      tryWrap(); setTimeout(tryWrap, 0);
+    })();
+
+    /* Global Modal Reset Functionality */
+    (function setupModalReset() {
+      // Function to reset modal content
+      function resetModalContent(modalElement) {
+        const $modal = $(modalElement);
+
+        // 1. Destroy all DataTables in the modal
+        $modal.find('table').each(function () {
+          if ($.fn.DataTable && $.fn.DataTable.isDataTable(this)) {
+            try {
+              $(this).DataTable().destroy();
+              $(this).empty();
+              console.log('✅ DataTable destroyed in modal:', modalElement.id);
+            } catch (e) {
+              console.warn('⚠️ Error destroying DataTable:', e);
+            }
+          }
+        });
+
+        // 2. Reset all forms
+        $modal.find('form').each(function () {
+          this.reset();
+        });
+
+        // 3. Reset all input fields (including those not in forms)
+        $modal.find('input[type="text"], input[type="number"], input[type="email"], input[type="password"], textarea').val('');
+        $modal.find('input[type="checkbox"], input[type="radio"]').prop('checked', false);
+        $modal.find('input[type="file"]').val('');
+
+        // 4. Reset all select elements (including Select2)
+        $modal.find('select').each(function () {
+          // Reset Select2 if initialized
+          if ($(this).hasClass('select2-hidden-accessible')) {
+            try {
+              $(this).val(null).trigger('change');
+            } catch (e) {
+              console.warn('⚠️ Error resetting Select2:', e);
+            }
+          } else {
+            // Regular select reset
+            this.selectedIndex = 0;
+          }
+        });
+
+        // 5. Clear dynamic content areas (common class names)
+        $modal.find('.dynamic-content, .result-container, .preview-area').empty();
+
+        // 6. Remove any error/success messages
+        $modal.find('.alert, .error-message, .success-message').remove();
+
+        // 7. Reset any custom data attributes
+        $modal.removeData();
+
+        console.log('🔄 Modal reset complete:', modalElement.id);
+      }
+
+      // Attach reset handler to all modals
+      $(document).ready(function () {
+        // Find all Bootstrap modals
+        $('.modal').each(function () {
+          const modalElement = this;
+
+          // Use Bootstrap 5 event
+          $(modalElement).on('hidden.bs.modal', function () {
+            resetModalContent(modalElement);
+          });
+        });
+
+        console.log('✅ Modal reset handlers attached to all modals');
+      });
+    })();
+
+  </script>
+</body>
+
+</html>

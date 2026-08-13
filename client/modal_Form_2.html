@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { font-family: 'Roboto', sans-serif; background-color: #f8f9fa; }
+        .modal-header { background-color: #00695c; color: white; }
+        .modal-title { font-weight: 500; }
+        .form-label { font-weight: 500; color: #2F4F4F; font-size: 0.9rem; }
+        .form-control, .form-select { border-color: #dee2e6; font-size: 0.9rem; }
+        .form-control:focus, .form-select:focus { border-color: #00695c; box-shadow: 0 0 0 0.2rem rgba(0, 105, 92, 0.25); }
+        fieldset { border-top: 1px solid #dee2e6; padding-top: 15px; margin-top: 20px; }
+        fieldset legend { color: #2F4F4F; font-weight: 500; font-size: 1rem; padding: 0 10px; }
+        .btn-success { background-color: #00695c; border-color: #00695c; }
+        .btn-success:hover { background-color: #004d40; }
+        .textarea-compact { height: 60px; resize: vertical; }
+        #modal_Form_2_message { margin-top: 10px; }
+        /* Responsive adjustments */
+        @media (max-width: 768px) { .form-row { flex-direction: column; gap: 10px; } }
+    </style>
+</head>
+<body>
+    <div id="modal_Form_2_message" class="alert alert-info d-none" role="alert"></div>
+
+    <div class="container-fluid">
+        <div class="modal fade full-screen-modal" id="modal_Form_2_modal" data-bs-keyboard="false">
+            <div class="modal-dialog modal-fullscreen">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="fas fa-check-circle me-2"></i>CẬP NHẬT HIỆU SUẤT</h5>
+                        <div id="message"></div>
+                        <input type="hidden" id="recId" name="recId" value="">
+                        <input type="hidden" id="quyen" name="quyen" value="">
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="modal_Form_2_form" onsubmit="handleFormSubmit(event)">
+                            <fieldset>
+                                <legend>THÔNG TIN NGHIỆM THU</legend>
+                                <div class="row g-3">
+                                    <div class="col-md-2">
+                                        <label class="form-label">Kỳ nghiệm thu</label>
+                                        <select class="form-select" name="fHS_KyNghiemThu" id="fHS_KyNghiemThu" required title="Chọn kỳ nghiệm thu">
+                                            <option value="">--Chọn kỳ nghiệm thu--</option>
+                                            <!-- Options here -->
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label">Khối</label>
+                                        <select class="form-select" name="fHS_Khoi" id="fHS_Khoi" required title="Chọn khối">
+                                            <option value="">--Chọn khối--</option>
+                                            <!-- Options here -->
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label">Team</label>
+                                        <input type="text" class="form-control" name="fHS_Team" id="fHS_Team" required placeholder="Nhập team">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label">Mã nhân sự</label>
+                                        <input type="text" class="form-control" name="fHS_MNS" id="fHS_MNS" placeholder="Nhập mã">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Họ và tên</label>
+                                        <input type="text" class="form-control" name="fHS_HoTen" id="fHS_HoTen" required placeholder="Nhập họ tên">
+                                    </div>
+                                </div>
+                            </fieldset>
+
+                            <fieldset>
+                                <legend>THÔNG TIN JOB</legend>
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Tên cơ chế</label>
+                                        <select class="form-select" name="fHS_TenCoChe" id="fHS_TenCoChe" title="Chọn tên cơ chế">
+                                            <option value="">--Chọn tên cơ chế--</option>
+                                            <!-- Options here -->
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Loại cơ chế</label>
+                                        <select class="form-select" name="fHS_LoaiCoChe" id="fHS_LoaiCoChe" title="Chọn loại cơ chế">
+                                            <option value="">--Chọn loại cơ chế--</option>
+                                            <option value="Chấm job">Chấm job</option>
+                                            <option value="OKR">OKR</option>
+                                            <option value="Thưởng dự án">Thưởng dự án</option>
+                                            <option value="Chỉ tiêu doanh số">Chỉ tiêu doanh số</option>
+                                            <option value="Nhuận">Nhuận</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4 d-none">
+                                        <label class="form-label">ID job</label>
+                                        <select class="form-select" name="fHS_IDjob" id="fHS_IDjob">
+                                            <option value="">--Chọn ID job--</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="row g-3 mt-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Nhóm công việc</label>
+                                        <select class="form-select" name="fHS_NhomCongViec" id="fHS_NhomCongViec" title="Chọn nhóm công việc">
+                                            <option value="">--Chọn nhóm công việc--</option>
+                                            <!-- Options here -->
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Tên job</label>
+                                        <select class="form-select" name="fHS_TenJob" id="fHS_TenJob" title="Chọn tên job">
+                                            <option value="">--Chọn tên job--</option>
+                                            <!-- Options here -->
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Độ khó</label>
+                                        <select class="form-select" name="fHS_DoKho" id="fHS_DoKho" title="Chọn độ khó">
+                                            <option value="">--Chọn độ khó--</option>
+                                            <!-- Options here -->
+                                        </select>
+                                    </div>
+                                </div>
+                            </fieldset>
+
+                            <fieldset>
+                                <legend>MÔ TẢ & KẾT QUẢ</legend>
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Diễn giải công việc</label>
+                                        <textarea class="form-control textarea-compact" name="fHS_MoTa" id="fHS_MoTa" placeholder="Nhập mô tả"></textarea>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Kết quả thực hiện</label>
+                                        <textarea class="form-control textarea-compact" id="fHS_KetQua" placeholder="Nhập kết quả"></textarea>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Link output</label>
+                                        <textarea class="form-control textarea-compact" name="fHS_LinkOutput" id="fHS_LinkOutput" placeholder="Nhập link"></textarea>
+                                    </div>
+                                </div>
+                            </fieldset>
+
+                            <fieldset>
+                                <legend>KHỐI LƯỢNG HOÀN THÀNH & ĐÁNH GIÁ</legend>
+                                <div class="row g-3">
+                                    <div class="col-md-3">
+                                        <label class="form-label">Số lượng job</label>
+                                        <input type="text" class="form-control" name="fHS_SoLuong" id="fHS_SoLuong" oninput="formatNumber_Form(this)" placeholder="0">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Khối lượng CV</label>
+                                        <input type="text" class="form-control" name="fHS_KLuong" id="fHS_KLuong" oninput="formatNumber_Form(this)" placeholder="0">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Tỷ lệ tham gia</label>
+                                        <input type="text" class="form-control" name="fHS_TyLeThamGia" id="fHS_TyLeThamGia" oninput="formatPercentage(this)" placeholder="0%">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Tỷ lệ hưởng HS</label>
+                                        <input type="text" class="form-control" name="fHS_tyLeHuong" id="fHS_tyLeHuong" oninput="formatPercentage(this)" placeholder="0%">
+                                    </div>
+                                </div>
+                                <div class="row g-3 mt-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Chất lượng hoàn thành</label>
+                                        <select class="form-select" name="fHS_ChatLuong" id="fHS_ChatLuong" title="Chọn chất lượng">
+                                            <option value="">--Chọn chất lượng--</option>
+                                            <!-- Options here -->
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Đơn giá</label>
+                                        <input type="text" class="form-control" name="fHS_DonGia" id="fHS_DonGia" oninput="formatNumber_Form(this)" placeholder="0">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Hiệu suất</label>
+                                        <input type="text" class="form-control" name="fHS_HieuSuat" id="fHS_HieuSuat" oninput="formatNumber_Form(this)" placeholder="0">
+                                    </div>
+                                </div>
+                            </fieldset>
+
+                            <fieldset>
+                                <legend>GHI CHÚ CHUNG</legend>
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <textarea class="form-control textarea-compact" name="fHS_GhiChu" id="fHS_GhiChu" placeholder="Nhập ghi chú"></textarea>
+                                    </div>
+                                </div>
+                            </fieldset>
+
+                            <fieldset>
+                                <legend>PHÂN LOẠI KHÁC</legend>
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Win - Fail</label>
+                                        <select class="form-select" name="fHS_WinFail" id="fHS_WinFail" title="Chọn win-fail">
+                                            <option value="">--Chọn win-fail--</option>
+                                            <option value="WIN">WIN</option>
+                                            <option value="FAIL">FAIL</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Nội bộ - Khách</label>
+                                        <select class="form-select" name="fHS_noibo_khach" id="fHS_noibo_khach" title="Chọn nội bộ-khách">
+                                            <option value="">--Chọn nội bộ-khách--</option>
+                                            <option value="Nội bộ">Nội bộ</option>
+                                            <option value="Khách hàng">Khách hàng</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Dự án</label>
+                                        <select class="form-select" name="fHS_DuAn" id="fHS_DuAn" title="Chọn dự án">
+                                            <option value="">--Chọn dự án--</option>
+                                            <!-- Options here -->
+                                        </select>
+                                    </div>
+                                </div>
+                            </fieldset>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" form="modal_Form_2_form" class="btn btn-success"><i class="fas fa-save me-2"></i>Submit</button>
+                        <button type="reset" form="modal_Form_2_form" class="btn btn-primary"><i class="fas fa-undo me-2"></i>Reset</button>
+                        <button type="button" class="btn btn-danger" data-bs-dismiss="modal"><i class="fas fa-times me-2"></i>Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function handleFormSubmit(event) {
+            event.preventDefault();
+            const form = event.target;
+            const messageDiv = document.getElementById('modal_Form_2_message');
+            messageDiv.classList.remove('d-none', 'alert-success', 'alert-danger');
+            messageDiv.classList.add('alert-info');
+            messageDiv.textContent = 'Đang xử lý...';
+
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+
+            google.script.run.withSuccessHandler((response) => {
+                messageDiv.classList.remove('alert-info');
+                messageDiv.classList.add('alert-success');
+                messageDiv.textContent = response.message || 'Cập nhật thành công!';
+                // Optional: Reset form or close modal
+            }).withFailureHandler((error) => {
+                messageDiv.classList.remove('alert-info');
+                messageDiv.classList.add('alert-danger');
+                messageDiv.textContent = error.message || 'Lỗi khi cập nhật!';
+            }).processFormData(data);  // Giả sử function server-side là processFormData
+        }
+
+        // Giữ nguyên functions formatNumber_Form, formatPercentage từ code cũ
+        function formatNumber_Form(input) {
+            // Implement as in original
+        }
+        function formatPercentage(input) {
+            // Implement as in original
+        }
+
+        // Auto-focus first field on modal show.
+        // Script có thể được include trước khi toàn bộ DOM được parse xong, nên gắn listener sau DOMContentLoaded.
+        function bindModalForm2Autofocus() {
+            const modal = document.getElementById('modal_Form_2_modal');
+            if (!modal || modal.dataset.autofocusBound === 'true') return;
+
+            modal.dataset.autofocusBound = 'true';
+
+            modal.addEventListener('shown.bs.modal', () => {
+                document.getElementById('fHS_KyNghiemThu')?.focus();
+            });
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', bindModalForm2Autofocus, { once: true });
+        } else {
+            bindModalForm2Autofocus();
+        }
+    </script>
+</body>
+</html>

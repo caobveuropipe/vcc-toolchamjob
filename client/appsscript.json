@@ -1,0 +1,26 @@
+{
+  "timeZone": "Asia/Ho_Chi_Minh",
+  "dependencies": {
+    "libraries": [
+      {
+        "userSymbol": "LibLink",
+        "version": "0",
+        "libraryId": "1QKp626uLGqyVd-7twrda95I6XW5fkHE-RKYg-NzNmQzIom1q5w_YrLG9",
+        "developmentMode": true
+      }
+    ],
+    "enabledAdvancedServices": [
+      {
+        "userSymbol": "Sheets",
+        "version": "v4",
+        "serviceId": "sheets"
+      }
+    ]
+  },
+  "exceptionLogging": "STACKDRIVER",
+  "runtimeVersion": "V8",
+  "webapp": {
+    "executeAs": "USER_ACCESSING",
+    "access": "ANYONE"
+  }
+}

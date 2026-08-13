@@ -1,0 +1,249 @@
+<script>
+    function modal_phanquyen_3_showModal() {
+        modal_phanquyen_3_Reset();
+        modal_phanquyen_3_loadEmailList(); // Load danh sách email
+        $('#modal_phanquyen_2_Modal').modal('show');
+    }
+
+    function modal_phanquyen_3_hideModal() {
+        modal_phanquyen_3_Reset();
+        $('#modal_phanquyen_2_Modal').modal('hide');
+    }
+
+    //Drop tên cơ chế/Khung cơ chế
+
+    function modal_khung_3_taoDropDown_CoChe() {
+        // Gọi hàm Apps Script để lấy danh sách dropdown
+        google.script.run.withSuccessHandler(dropDown_KhungCoChe).getDropdownList("HieuSuat!A2:A");
+    }
+    function dropDown_KhungCoChe(values) {
+        populateDropdown("modal_khung_2_khungCoChe_DropList", values);
+    }
+    function dropDown_KhungCoCheUpload_Tab(values) {
+        populateDropdown("modal_phanquyen_2_emailDroplist", values);
+    }
+
+    //Load danh sách email vào dropdown
+    function modal_phanquyen_3_loadEmailList() {
+        // Gọi hàm Apps Script để lấy danh sách email
+        google.script.run
+            .withSuccessHandler(function (emails) {
+                if (emails && emails.length > 0) {
+                    populateDropdown("modal_phanquyen_2_emailDroplist", emails);
+
+                    // Khởi tạo lại Select2 sau khi có dữ liệu
+                    $("#modal_phanquyen_2_emailDroplist").select2({
+                        theme: "bootstrap-5",
+                        allowClear: true,
+                        width: '240px', // Đặt width cố định để không chiếm hết dòng
+                        placeholder: "Chọn email",
+                        dropdownParent: $("#modal_phanquyen_2_Modal")
+                    });
+                } else {
+                    console.warn("Không có email nào để hiển thị");
+                }
+            })
+            .withFailureHandler(function (error) {
+                console.error("Lỗi khi load danh sách email:", error);
+                alert("Không thể tải danh sách email. Vui lòng thử lại!");
+            })
+            .modal_phanquyen_1_getEmailList(); // Gọi hàm backend
+    }
+
+
+    function modal_phanquyen_3_LayDuLieuVaoBang() {
+        console.time("Execution Time"); // Bắt đầu đo thời gian
+
+        // Hủy DataTable nếu đã tồn tại
+        if ($.fn.DataTable.isDataTable('#dataTablePhanQuyen')) {
+            $('#dataTablePhanQuyen').DataTable().destroy();
+            $('#dataTablePhanQuyen').empty(); // Xóa nội dung sau khi hủy DataTable
+        }
+
+        var email = document.getElementById('modal_phanquyen_2_emailDroplist').value;
+
+        google.script.run
+            .withSuccessHandler(response => {
+                if (!response || response.length === 0) {
+                    //console.log("Dữ liệu rỗng hoặc không có kết quả.");
+                    console.timeEnd("Execution Time");
+                    return;
+                }
+                modal_phanquyen_3_createTable(response);
+                console.timeEnd("Execution Time");
+            })
+            .withFailureHandler(error => {
+                console.error("Lỗi khi tải dữ liệu:", error);
+                alert("Đã xảy ra lỗi khi lấy dữ liệu.");
+                console.timeEnd("Execution Time");
+            })
+            .modal_phanquyen_1_getData(email);
+    }
+    // ============================
+    //  HÀM TẠO BẢNG CHUẨN THEO UI MATERIAL
+    // ============================
+
+    function modal_phanquyen_3_createTable(dataArray) {
+        console.time("Execution Time");
+
+        if (!Array.isArray(dataArray) || dataArray.length === 0) {
+            console.error("Dữ liệu không hợp lệ hoặc không có kết quả!");
+            return;
+        }
+
+        const tbody = document.querySelector('#dataTablePhanQuyen tbody');
+        tbody.innerHTML = "";
+
+        dataArray.forEach((row, i) => {
+            const tenCoChe = row[0] || "";
+            const quyen = row[1] || "";
+            const maNS = row[2] || "";
+
+            const tr = document.createElement('tr');
+
+            tr.innerHTML = `
+            <td><input type="checkbox" class="form-check-input row-checkbox"></td>
+            <td>${tenCoChe}</td>
+            <td>
+                <div class="btn-group btn-group-sm" role="group">
+                    ${["ALL", "EDIT", "VIEW", "Other"].map(v => `
+                        <input type="radio" class="btn-check ratio-input" name="phanquyen_${i}" id="pq_${i}_${v}" value="${v}" ${quyen === v ? "checked" : ""}>
+                        <label class="btn btn-outline-primary" for="pq_${i}_${v}">${v}</label>
+                    `).join('')}
+                </div>
+            </td>
+            <td><input type="text" class="form-control form-control-sm edit-input" value="${maNS}" /></td>
+        `;
+
+            tbody.appendChild(tr);
+
+            // Hiệu ứng edit đẹp
+            const input = tr.querySelector('.edit-input');
+            input.addEventListener('focus', () => tr.classList.add('editing-row'));
+            input.addEventListener('blur', () => tr.classList.remove('editing-row'));
+
+            // Tự check row khi đổi radio
+            tr.querySelectorAll('.ratio-input').forEach(radio => {
+                radio.addEventListener('change', () => {
+                    tr.querySelector('.row-checkbox').checked = true;
+                });
+            });
+        });
+
+        console.timeEnd("Execution Time");
+
+        // ===== SEARCH FILTER =====
+        const searchInput = document.getElementById('tableSearchInput');
+        searchInput.addEventListener('input', function () {
+            const keyword = this.value.toLowerCase();
+            document.querySelectorAll('#dataTablePhanQuyen tbody tr').forEach(tr => {
+                const text = tr.innerText.toLowerCase();
+                tr.style.display = text.includes(keyword) ? '' : 'none';
+            });
+        });
+    }
+
+    // ============================
+    // LẤY DÒNG ĐƯỢC CHỌN
+    // ============================
+    function modal_phanquyen_3_getSelectedRows() {
+        const selected = [];
+        const email = document.getElementById('modal_phanquyen_2_emailDroplist').value;
+
+        document.querySelectorAll('#dataTablePhanQuyen tbody tr').forEach(tr => {
+            const cb = tr.querySelector('.row-checkbox');
+            if (!cb.checked) return;
+
+            const tenCoChe = tr.cells[1].textContent.trim();
+            const quyen = tr.querySelector('.ratio-input:checked')?.value || "";
+            const maNS = tr.querySelector('.edit-input').value.trim();
+
+            selected.push([tenCoChe, `${email}/${quyen}`, maNS]);
+        });
+
+        return selected;
+    }
+
+
+    //Lấy dữ liệu từ table
+    function modal_phanquyen_3_submit() {
+        let data = modal_phanquyen_3_getSelectedRows();
+        //console.log("Dữ liệu phân quyền trên table:", data); 
+
+        if (!data || data.length === 0) {
+            alert("Không có dữ liệu để lưu!");
+            return;
+        }
+
+        google.script.run
+            .withSuccessHandler(function (response) {
+                alert("✅ " + response);
+                modal_phanquyen_3_Reset();
+            })
+            .withFailureHandler(function (error) {
+                console.error("❌ Lỗi khi lưu dữ liệu:", error);
+                alert("❌ Đã xảy ra lỗi khi lưu dữ liệu!");
+            })
+            .modal_phanquyen_1_saveData(data); // Gửi toàn bộ mảng lên GAS
+    }
+
+    function modal_phanquyen_3_delete() {
+        var email = document.getElementById("modal_phanquyen_2_emailDroplist").value;
+        if (!email) {
+            Swal.fire("⚠️ Cảnh báo!", "Vui lòng chọn email cần xóa phân quyền!", "warning");
+            return;
+        }
+
+        Swal.fire({
+            title: "Bạn có chắc chắn?",
+            text: "Thao tác này sẽ xóa toàn bộ phân quyền của email: " + email,
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#d33",
+            cancelButtonColor: "#3085d6",
+            confirmButtonText: "Xóa ngay!",
+            cancelButtonText: "Hủy"
+        }).then((result) => {
+            if (result.isConfirmed) {
+                google.script.run
+                    .withSuccessHandler(function (response) {
+                        Swal.fire("✅ Thành công!", response, "success").then(() => {
+                            // Sau khi xóa xong, reset lại bảng dữ liệu và dropdown email
+                            modal_phanquyen_3_Reset();
+                        });
+                    })
+                    .withFailureHandler(function (error) {
+                        console.error("❌ Lỗi khi xóa phân quyền:", error);
+                        Swal.fire("❌ Lỗi!", "Đã xảy ra lỗi khi xóa phân quyền!", "error");
+                    })
+                    .modal_phanquyen_1_delPer(email);
+            }
+        });
+    }
+
+    /*function modal_phanquyen_3_Reset(){
+      document.getElementById("modal_phanquyen_2_emailDroplist").value = "";
+      document.getElementById("modal_phanquyen_2_dataTable").innerHTML = "";
+    }*/
+    function modal_phanquyen_3_Reset() {
+        document.getElementById("modal_phanquyen_2_emailDroplist").value = "";
+
+        document.getElementById("modal_phanquyen_2_dataTable").innerHTML = `
+          <table id="dataTablePhanQuyen" class="table table-sm align-middle" style="width:100%; font-size:14px;">
+              <thead>
+                  <tr>
+                      <th>Chọn</th>
+                      <th>Tên Cơ Chế</th>
+                      <th>Phân Quyền</th>
+                      <th>Mã Nhân Sự</th>
+                  </tr>
+              </thead>
+              <tbody></tbody>
+          </table>
+      `;
+    }
+
+
+
+
+</script>

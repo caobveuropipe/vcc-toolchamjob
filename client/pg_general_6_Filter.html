@@ -1,0 +1,159 @@
+<!-- ==================== FILTER PARTIAL (no <html>/<body>) ==================== -->
+<div id="menu" class="collapse">
+
+  <style>
+    /* Giữ nguyên toàn bộ style gốc, nhưng scope trong #menu để tránh xung đột */
+    #menu .toolbar {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 0.75rem;
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+
+    #menu .toolbar__panel {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    #menu .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 0.5rem;
+    }
+
+    #menu select.form-select {
+      font-size: 0.85rem;
+      border-radius: 0.5rem;
+    }
+
+    #menu .panel__footer {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    #menu .dropdown-menu {
+      display: none;
+      position: absolute;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 0.5rem;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      padding: 0.5rem;
+      margin-top: 0.25rem;
+      z-index: 1000;
+    }
+
+    /* Toggle class cho vanilla JS */
+    #menu .dropdown.open .dropdown-menu {
+      display: block;
+    }
+
+    #menu .dropdown-item {
+      cursor: pointer;
+      padding: 0.25rem 0.75rem;
+      border-radius: 0.25rem;
+      font-size: 0.85rem;
+    }
+
+    #menu .dropdown-item:hover {
+      background-color: #f1f1f1;
+    }
+
+    #menu .btn {
+      font-size: 0.85rem;
+      border-radius: 0.5rem;
+      padding: 0.4rem 0.75rem;
+    }
+
+    #menu .btn--primary {
+      background-color: #0d6efd;
+      color: white;
+    }
+
+    #menu .btn.ghost {
+      background: transparent;
+      border: 1px solid #ced4da;
+      color: #495057;
+    }
+
+    /* Giảm ưu tiên stacking của vùng filter */
+    #menu { position: relative; z-index: 1; }
+
+    /* Dropdown filter thấp hơn modal */
+    #menu .dropdown-menu { z-index: 1030; }
+
+    /* Đảm bảo modal nằm trên cùng */
+    .modal { z-index: 1060; }
+    .modal-backdrop { z-index: 1055; }
+
+  </style>
+
+  <div class="toolbar">
+    <div class="toolbar__panel" id="panel">
+      <div class="grid" role="group" aria-label="Bộ lọc dữ liệu">
+        <!-- Bộ lọc mới -->
+        <button class="btn btn-info btn-outline-light" type="button" id="resetAll"><i class="fas fa-sync-alt icon"></i> Làm mới</button>
+
+        <select id="filterKyNghiemThu" class="form-select" title="Kỳ nghiệm thu"><option value="">Kỳ nghiệm thu</option></select>
+        <select id="filterkhoi" class="form-select" title="Khối"><option value="">Khối</option></select>
+        <select id="filterHoTen" class="form-select" title="Họ và tên"><option value="">Họ tên</option></select>
+        <select id="filterLoaiCoChe" class="form-select" title="Loại cơ chế"><option value="">Loại cơ chế</option></select>
+        <select id="filterCoChe" class="form-select" title="Tên cơ chế"><option value="">Tên cơ chế</option></select>
+        <select id="filterDoKho" class="form-select" title="Độ khó"><option value="">Độ khó</option></select>
+        <select id="filterChatLuong" class="form-select" title="Chất lượng"><option value="">Chất lượng</option></select>
+        <select id="filterDuAn" class="form-select" title="Dự án"><option value="">Dự án</option></select>
+        <select id="filterWinFail" class="form-select" title="Win/Fail"><option value="">Win/Fail</option></select>
+        <select id="filterNB_Khach" class="form-select" title="Nội bộ / Khách"><option value="">Nội bộ / Khách</option></select>
+
+        <div class="dropdown" id="exportDD">
+          <button class="btn btn-info btn-outline-light dropdown-toggle" type="button" id="exportTTL">
+            ⬇️ Export
+          </button>
+          <ul class="dropdown-menu" aria-labelledby="exportTTL">
+            <li><button class="dropdown-item" type="button" id="excelfull">📗 Excel full</button></li>
+            <li><button class="dropdown-item" type="button" id="csv">🧾 CSV</button></li>
+          </ul>
+        </div>
+        
+      </div>
+
+      <div class="panel__footer" style="display:none;">
+        <!-- Export dropdown -->
+        
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Vanilla JS toggle cho dropdown (tránh conflict Bootstrap/iframe)
+    (function () {
+      const dd = document.getElementById('exportDD');
+      const ttl = document.getElementById('exportTTL');
+      if (dd && ttl) {
+        ttl.addEventListener('click', function(e) {
+          e.stopPropagation();
+          e.preventDefault(); // Ngăn default behavior nếu cần
+          dd.classList.toggle('open');
+        });
+
+        // Close khi click outside
+        document.addEventListener('click', function(e) {
+          if (!dd.contains(e.target)) {
+            dd.classList.remove('open');
+          }
+        });
+      }
+    })();
+
+    // Reset select (giữ nguyên)
+    document.getElementById('resetAll')?.addEventListener('click', function() {
+      $('#panel select').val(null).trigger('change');
+    });
+  </script>
+</div>
+<!-- ==================== END FILTER PARTIAL ==================== -->

@@ -1,0 +1,264 @@
+<style>
+    /* Điều chỉnh màu chữ và nền */
+    .btn-info {
+        background-color: #00695c !important;
+        border-color: #00695c !important;
+        transform: scale(0.8);
+        transform-origin: left center;
+    }
+
+    .btn-info:hover {
+        background-color: white !important;
+        border-color: #138496;
+        color: black !important;
+    }
+
+    /* Định dạng icon lớn */
+    .icon-large {
+        font-size: 3em !important;
+        display: block;
+        margin-bottom: 8px;
+    }
+
+    /* Căn chỉnh văn bản nằm dưới icon */
+    .button-text {
+        display: block;
+        text-align: center;
+        font-size: 0.9em;
+    }
+
+    .btn-success {
+        transform: scale(0.9);
+        transform-origin: left center;
+    }
+
+    /* modal full screen */
+    .full-screen-modal .modal-dialog {
+        max-width: 100%;
+        width: 100%;
+        height: 100vh;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .full-screen-modal .modal-content {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .full-screen-modal .modal-body {
+        flex-grow: 1;
+        overflow-y: auto;
+    }
+
+    .modal-content input,
+    .modal-content button,
+    .modal-content select {
+        transform: scale(0.9);
+    }
+
+    .modal-content select {
+        transform: scale(0.9);
+        width: 100% !important;
+    }
+
+    .select2-container {
+        font-size: 80% !important;
+        min-width: 7.5rem !important;
+        transform: scale(0.90);
+        transform-origin: left center;
+        z-index: 2000 !important;
+    }
+
+    /* Fix Select2 dropdown bị che bởi header */
+    .select2-container--open {
+        z-index: 9999 !important;
+    }
+
+    .select2-dropdown {
+        z-index: 9999 !important;
+    }
+
+    .select2-selection__placeholder {
+        white-space: nowrap !important;
+    }
+
+    .select2-selection__clear {
+        position: absolute;
+        right: 10px;
+    }
+
+    table th,
+    table td {
+        font-size: 13px !important;
+    }
+
+    #backToTop {
+        position: fixed;
+        bottom: 80px;
+        right: 20px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        cursor: pointer;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        transition: background-color 0.3s, transform 0.3s;
+    }
+
+    #backToTop:hover {
+        background-color: #0056b3;
+        transform: scale(1.1);
+    }
+
+    #backToTop i {
+        margin: 0;
+    }
+
+    #backToBottom {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background-color: #28a745;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        cursor: pointer;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        transition: background-color 0.3s, transform 0.3s;
+    }
+
+    #backToBottom:hover {
+        background-color: #218838;
+        transform: scale(1.1);
+    }
+
+    #backToBottom i {
+        margin: 0;
+    }
+
+    .swal2-container {
+        z-index: 6000 !important;
+    }
+
+    /* Vị trí của toast */
+    #errorToast {
+        position: fixed;
+        top: 0%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 5000;
+    }
+
+    /* Trường hợp không có quyền - icon màu xám, không thể click */
+    .no-permission {
+        color: #A9A9A9 !important;
+        cursor: not-allowed !important;
+    }
+
+    /* Trường hợp có quyền chỉnh sửa (EDIT) */
+    .edit-only {
+        color: #ffa500 !important;
+        cursor: pointer;
+        transition: color 0.2s ease-in-out;
+    }
+
+    /* Mặc định các icon có quyền */
+    .fa-pen-to-square {
+        cursor: pointer;
+        transition: color 0.2s ease-in-out;
+    }
+
+    /* Thêm hiệu ứng hover */
+    .fa-pen-to-square:hover {
+        color: #e69500;
+    }
+
+    .fa-trash {
+        cursor: pointer;
+        transition: color 0.2s ease-in-out;
+    }
+
+    .fa-trash:hover {
+        color: #e69500;
+    }
+
+    /* Trường hợp có quyền chỉnh sửa và xóa (ALL) */
+    .action-icon {
+        cursor: pointer;
+        transition: color 0.2s ease-in-out;
+    }
+
+    /* Hiệu ứng hover */
+    .action-icon:hover {
+        color: #8B0000;
+    }
+
+    .edit-only:hover {
+        color: #e69500;
+    }
+
+    /* Nút Đóng */
+    .btn-close {
+        transition: transform 0.2s;
+    }
+
+    .btn-close:hover {
+        transform: rotate(90deg);
+    }
+
+    /* Mobile Overrides to fix "too small" issue */
+    @media (max-width: 768px) {
+
+        .btn-info,
+        .btn-success,
+        .btn,
+        .modal-content input,
+        .modal-content button,
+        .modal-content select,
+        .select2-container {
+            transform: scale(1) !important;
+            font-size: 1rem !important;
+        }
+
+        table th,
+        table td {
+            font-size: 12px !important;
+            padding: 8px 4px !important;
+        }
+
+        .select2-container {
+            width: 100% !important;
+            min-width: unset !important;
+        }
+    }
+
+    /* Sticky Table Header khi cuộn trang */
+    #dataTableHieuSuat thead th {
+        position: sticky !important;
+        top: 64px !important;
+        z-index: 1010 !important;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.12);
+    }
+
+    @media (max-width: 768px) {
+        #dataTableHieuSuat thead th {
+            top: 120px !important;
+        }
+    }
+</style>

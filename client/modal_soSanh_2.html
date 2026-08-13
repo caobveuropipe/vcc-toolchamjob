@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SO SÁNH PIVOT HIỆU SUẤT (Tabbed Dark)</title>
+
+  <style>
+    
+    /* ===================== THEME ===================== */
+    /* Dark (default) */
+    #soSanhPivotModal{
+      --bg:#0b1220;
+      --card:#121a2b;
+      --text:#e6eefc;
+      --muted:#9fb1d1;
+      --border:#203055;
+      --accent:#6dc4ff;
+      --warn:#ffbf69;
+      --pill-bg:        #1a2745;      /* nền tab thường */
+      --pill-fg:        var(--muted); /* chữ tab thường */
+      --pill-border:    var(--border);
+      --pill-bg-hover:  #203055;      /* nền hover */
+      --pill-fg-hover:  var(--text);  /* chữ hover */
+      --pill-bg-active: var(--accent);/* nền tab active */
+      --pill-fg-active: var(--accent);//#0b1220;      /* chữ tab active (đậm, dễ đọc trên accent sáng) */
+      --tab-content-bg: color-mix(in oklab, var(--card) 80%, var(--bg)); /* Nền tab content, tối hơn card 1 chút */
+      --close-filter: invert(1) grayscale(100%) brightness(200%);
+    }
+    /* Light (khi set data-theme="light") */
+    #soSanhPivotModal[data-theme="light"]{
+      --bg:#ffffff;
+      --card:#ffffff;
+      --text:#0f172a;
+      --muted:#475569;
+      --border:#e5e7eb;
+      --accent:#0ea5e9;
+      --warn:#f59e0b;
+      --pill-bg:        #f3f4f6;      /* nền tab thường sáng */
+      --pill-fg:        #374151;      /* chữ tab thường tối */
+      --pill-border:    var(--border);
+      --pill-bg-hover:  #e5e7eb;      /* nền hover sáng hơn */
+      --pill-fg-hover:  #111827;      /* chữ hover đậm */
+      --pill-bg-active: var(--accent);/* nền tab active xanh */
+      --pill-fg-active: blue;//#ffffff;      /* chữ tab active trắng */
+      --tab-content-bg: #f9fafb; /* Nền tab content, sáng hơn card 1 chút */
+      --close-filter: none;
+    }
+
+
+    /* ================== RESET & HELPERS ================== */
+    #soSanhPivotModal, #soSanhPivotModal * { box-sizing:border-box; }
+    #soSanhPivotModal html, #soSanhPivotModal body { height:100%; margin:0; padding:0; }
+    #soSanhPivotModal .right-align{ text-align:right !important; }
+    #soSanhPivotModal .center-align{ text-align:center !important; }
+    #soSanhPivotModal .left-align{ text-align:left !important; }
+
+    /* ================== CONTAINER & HEADER ================== */
+    #soSanhPivotModal .modal,
+    #soSanhPivotModal .modal-dialog,
+    #soSanhPivotModal .modal-content{
+      overflow:visible;
+      background-color:var(--bg) !important;
+      color:var(--text);
+      border:1px solid var(--border);
+    }
+    #soSanhPivotModal .modal-header{
+      background-color:var(--card) !important;
+      border-bottom:1px solid var(--border);
+    }
+    #soSanhPivotModal .modal-header h5{ color:#00697f !important; font-weight:700; }
+
+    /* Nút trong header (không ảnh hưởng các nút body) */
+    #soSanhPivotModal .modal-header .btn-info{
+      border:1px solid var(--border);
+      /* gradient theo theme */
+      background:linear-gradient(
+        180deg,
+        color-mix(in oklab, var(--card) 92%, #fff),
+        color-mix(in oklab, var(--card) 78%, #000)
+      );
+      color:var(--text);
+      border-radius:10px;
+      font-weight:600;
+    }
+    #soSanhPivotModal .modal-header .btn-info:hover{
+      background:linear-gradient(
+        180deg,
+        color-mix(in oklab, var(--card) 96%, #fff),
+        color-mix(in oklab, var(--card) 86%, #000)
+      );
+    }
+
+    /* ================== TOOLBAR ================== */
+    #soSanhPivotModal .toolbar-sticky{
+      position:sticky; top:0; z-index:10;
+      background:var(--bg);
+      padding:8px 0;
+      border-bottom:1px solid var(--border);
+    }
+
+    /* ================== FORM & CONTROLS ================== */
+    #soSanhPivotModal select,
+    #soSanhPivotModal input[type="text"]{
+      width:100%;
+      padding:10px 12px;
+      border-radius:10px;
+      border:1px solid var(--border);
+      background:var(--card);
+      color:var(--text);
+      outline:none;
+    }
+    #soSanhPivotModal select[multiple]{ min-height:160px; }
+    /* trạng thái chọn trong select */
+    #soSanhPivotModal select option:checked{
+      background-color:color-mix(in oklab, var(--accent) 22%, #fff);
+      color:#0b1220; /* đọc tốt trên nền sáng của option */
+    }
+
+    /* ================== BUTTONS (BODY) ================== */
+    #soSanhPivotModal button:not(.btn-close, .btn-info){
+      border:1px solid var(--border);
+      background:linear-gradient(
+        180deg,
+        color-mix(in oklab, var(--card) 92%, #fff),
+        color-mix(in oklab, var(--card) 80%, #000)
+      );
+      color:var(--text);
+      padding:10px 14px;
+      border-radius:12px;
+      cursor:pointer;
+      font-weight:600;
+    }
+    #soSanhPivotModal button:not(.btn-close, .btn-info):hover{
+      background:linear-gradient(
+        180deg,
+        color-mix(in oklab, var(--card) 96%, #fff),
+        color-mix(in oklab, var(--card) 86%, #000)
+      );
+    }
+
+    /* ================== GRID & CARDS ================== */
+    #soSanhPivotModal .grid{ display:grid; gap:12px; }
+    #soSanhPivotModal .grid.cols-2{ grid-template-columns:1fr 1fr; }
+    #soSanhPivotModal .controls-grid{ display:grid; grid-template-columns:1fr; gap:12px; }
+    #soSanhPivotModal .two-col{ display:grid; grid-template-columns:1fr; gap:12px; }
+    #soSanhPivotModal .tight-row{ display:grid; grid-template-columns:1fr; gap:12px; }
+
+    @media (min-width: 992px){
+      #soSanhPivotModal .two-col{ grid-template-columns:1fr 1fr; align-items:start; }
+      #soSanhPivotModal .tight-row{ grid-template-columns:1fr; }
+    }
+
+    #soSanhPivotModal .card{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:16px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    #soSanhPivotModal .card label{ font-weight:600; color:var(--text); margin-bottom:4px; }
+    #soSanhPivotModal .muted{ color:var(--muted); opacity:.95; font-size:.9rem; }
+
+    /* ================== DUAL LIST ================== */
+    #soSanhPivotModal .dual{
+      display:grid;
+      grid-template-columns:1fr auto 1fr;
+      gap:8px;
+      align-items:stretch;
+    }
+    #soSanhPivotModal .dual-col{ display:flex; flex-direction:column; gap:6px; }
+    #soSanhPivotModal .dual-ctrl{
+      display:flex; flex-direction:column; gap:6px;
+      align-items:center; justify-content:center;
+    }
+    #soSanhPivotModal .dual-ctrl button{ padding:6px 10px; }
+    #soSanhPivotModal .dual-ctrl hr{
+      width:100%; border:0; border-top:1px solid var(--border); margin:6px 0;
+    }
+
+    /* ================== TABS (NAV-PILLS) ================== */
+    /* NEW: Nền tương phản cho Tab Content */
+    #soSanhPivotModal .tab-content{
+      background-color: var(--tab-content-bg);
+      padding:12px;
+      border:1px solid var(--border);
+      border-radius:12px;
+      margin-top:12px;
+    }
+    #soSanhPivotModal .tab-pane{ padding:4px; }
+    
+    #soSanhPivotModal .nav-pills .nav-link{
+      background-color: var(--pill-bg);
+      color:           var(--pill-fg);
+      border:1px solid var(--pill-border);
+      border-radius:8px;
+      padding:10px 15px;
+      font-weight:600;
+      transition:.2s;
+    }
+    #soSanhPivotModal .nav-pills .nav-link:not(.active):hover{
+      background-color: var(--pill-bg-hover);
+      color:            var(--pill-fg-hover);
+    }
+    #soSanhPivotModal .nav-pills .nav-link.active{
+      background-color: var(--pill-bg-active);
+      color:            var(--pill-fg-active);
+      border-color:transparent;
+    }
+
+
+    /* ================== TABLE ================== */
+    #soSanhPivotModal #dataTableSoSanh{ table-layout:auto !important; width:auto !important; }
+    #soSanhPivotModal #dataTableSoSanh_container2{ width:100%; }
+    #soSanhPivotModal #dataTableSoSanh th,
+    #soSanhPivotModal #dataTableSoSanh td{ white-space:nowrap; color: #2d3748; }//var(--text)
+
+    /* ================== Btn Close ================== */
+
+    /* Áp dụng cho nút đóng trong modal này */
+    #soSanhPivotModal .btn-close{
+      filter: var(--close-filter);
+      opacity: .85;           /* nhìn dịu hơn */
+      transition: opacity .15s ease;
+    }
+    #soSanhPivotModal .btn-close:hover{ opacity: 1; }
+
+    /* Tùy chọn: focus ring tương phản theo theme */
+    #soSanhPivotModal .btn-close:focus{
+      outline: none;
+      box-shadow: 0 0 0 .2rem color-mix(in oklab, var(--accent) 35%, transparent);
+      border-radius: 999px;
+    }
+
+    
+
+  </style>
+</head>
+<body>
+  <div class="container-fluid">
+    <div class="modal fade full-screen-modal" id="soSanhPivotModal" aria-hidden="true" data-bs-backdrop="static">
+      <div class="modal-dialog modal-dialog-centered modal-xl" role="document">
+        <div class="modal-content">
+
+          <!-- Header -->
+          <div class="modal-header">
+            <h5 class="m-0">SO SÁNH PIVOT HIỆU SUẤT</h5>
+            <button id="btnRunPivot" type="button" class="btn btn-info" style="width:8rem; margin-left: 5rem;">
+              <i class="fa-solid fa-person-running"></i> Chạy
+            </button>
+            <button id="btnReset" type="button" class="btn btn-info" style="width:8rem;">
+              <i class="fa-solid fa-refresh"></i> Reset
+            </button>
+            <!-- Trước: có data-bs-toggle / data-bs-target -->
+            <!-- Sau: gọi hàm toggle thuần -->
+            <button id="toggleFiltersBtn"
+                    class="btn btn-info"
+                    type="button"
+                    onclick="pg_pivot_toggleFilters()">
+              <i class="fa-solid fa-sliders"></i> Ẩn/Hiện pivot
+            </button>
+
+            <button id="btnTheme" class="btn btn-info" type="button"
+                    onclick="pg_pivot_toggleTheme()" aria-pressed="false"
+                    title="Chuyển giao diện">
+              <i class="fa-solid fa-sun"></i>
+            </button>
+
+
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+
+          <!-- Body -->
+          <div class="modal-body">
+            <!-- Sticky toolbar -->
+            <div class="toolbar-sticky d-flex align-items-center flex-wrap gap-2 w-100">
+              <!-- Controls (collapsible) -->
+              <div class="collapse show" id="controlsPanel" style="width:100%">
+                <div class="controls-grid">
+
+                  <!-- Tabs -->
+                  <ul class="nav nav-pills mb-3" id="pivotTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                      <button class="nav-link active" id="ky-tab" data-bs-toggle="pill" data-bs-target="#tab-ky" type="button" role="tab" aria-controls="tab-ky" aria-selected="true">1. Chọn KỲ (Base & Compare)</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                      <button class="nav-link" id="structure-tab" data-bs-toggle="pill" data-bs-target="#tab-structure" type="button" role="tab" aria-controls="tab-structure" aria-selected="false">2. Cấu trúc (Keys & Sub Keys)</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                      <button class="nav-link" id="value-tab" data-bs-toggle="pill" data-bs-target="#tab-value" type="button" role="tab" aria-controls="tab-value" aria-selected="false" style="text-color: white;">3. Chọn Giá trị (Value)</button>
+                    </li>
+                  </ul>
+
+                  <div class="tab-content" id="pivotTabsContent">
+                    <!-- Tab 1: Kỳ -->
+                    <div class="tab-pane fade show active" id="tab-ky" role="tabpanel" aria-labelledby="ky-tab">
+                      <div class="two-col">
+                        <div class="card" style="border-color: #2d3748;">
+                          <label>Kỳ làm gốc để so sánh</label>
+                          <select id="kyChonSelect" style="border-color: #2d3748;"></select>
+                        </div>
+                        <div class="card tight-row" style="border-color: #2d3748;">
+                          <label>Kỳ để so sánh với kỳ gốc (chọn nhiều)</label>
+                          <div class="dual">
+                            <div class="dual-col">
+                              <div class="muted">Available</div>
+                              <select id="kyAvail" style="border-color: #2d3748;" multiple></select>
+                            </div>
+                            <div class="dual-ctrl">
+                              <button id="kyAdd" type="button">›</button>
+                              <button id="kyRemove" type="button">‹</button>
+                              <hr/>
+                              <button id="kyUp" type="button">↑</button>
+                              <button id="kyDown" type="button">↓</button>
+                            </div>
+                            <div class="dual-col">
+                              <div class="muted">Selected (thứ tự so sánh)</div>
+                              <select id="kyChosen" multiple  style="border-color: #2d3748;"></select>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Tab 2: Cấu trúc -->
+                    <div class="tab-pane fade" id="tab-structure" role="tabpanel" aria-labelledby="structure-tab">
+                      <div class="two-col">
+                        <div class="card tight-row" style="border-color: #2d3748;">
+                          <label>Keys — Tiêu chí chính (Rows header)</label>
+                          <div class="dual">
+                            <div class="dual-col">
+                              <div class="muted">Available</div>
+                              <select id="keysAvail" style="border-color: #2d3748;" multiple></select>
+                            </div>
+                            <div class="dual-ctrl">
+                              <button id="keysAdd" type="button">›</button>
+                              <button id="keysRemove" type="button">‹</button>
+                              <hr />
+                              <button id="keysUp" type="button">↑</button>
+                              <button id="keysDown" type="button">↓</button>
+                            </div>
+                            <div class="dual-col">
+                              <div class="muted">Selected</div>
+                              <select id="keysChosen"  style="border-color: #2d3748;" multiple></select>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="card tight-row" style="border-color: #2d3748;">
+                          <label>Sub keys - Tiêu chí phụ (Columns header)</label>
+                          <div class="dual">
+                            <div class="dual-col">
+                              <div class="muted">Available</div>
+                              <select id="g1Avail"  style="border-color: #2d3748;" multiple></select>
+                            </div>
+                            <div class="dual-ctrl">
+                              <button id="g1Add" type="button">›</button>
+                              <button id="g1Remove" type="button">‹</button>
+                              <hr />
+                              <button id="g1Up" type="button">↑</button>
+                              <button id="g1Down" type="button">↓</button>
+                            </div>
+                            <div class="dual-col">
+                              <div class="muted">Selected</div>
+                              <select id="g1Chosen" style="border-color: #2d3748;" multiple></select>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Tab 3: Value -->
+                    <div class="tab-pane fade" id="tab-value" role="tabpanel" aria-labelledby="value-tab" style="border-color: #2d3748;">
+                      <div class="card tight-row" style="max-width: 50%;"> 
+                        <label>Value - Cột giá trị cần pivot (Hàm tính tổng Sum) — Chỉ chọn 1 cột</label>
+                        <div class="dual">
+                          <div class="dual-col" >
+                            <div class="muted">Available</div>
+                            <select id="valsAvail" style="border-color: #2d3748;" multiple></select>
+                          </div>
+                          <div class="dual-ctrl">
+                            <button id="valsAdd" type="button">›</button>
+                            <button id="valsRemove" type="button">‹</button>
+                          </div>
+                          <div class="dual-col">
+                            <div class="muted">Selected</div>
+                            <select id="valsChosen" style="border-color: #2d3748;" multiple></select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div id="msg" class="muted" style="margin-top: 8px;"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Preview -->
+            <div id="dataTableSoSanh_container2" style="margin-top:20px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ========== GIỮ NGUYÊN LOGIC CỦA BẠN (KHÔNG SỬA) ========== */
+
+    // Mở modal đúng yêu cầu
+    function modamodal_soSanh_2_showModal(){ $('#soSanhPivotModal').modal('show'); }
+
+    // Ghi nhớ trạng thái collapse
+    /*document.addEventListener('DOMContentLoaded', () => {
+      const panel = document.getElementById('controlsPanel');
+      const saved = localStorage.getItem('pivot_controls_open');
+      if (saved === '0') panel.classList.remove('show'); else panel.classList.add('show');
+
+      $('#controlsPanel').on('shown.bs.collapse', ()=> localStorage.setItem('pivot_controls_open','1'));
+      $('#controlsPanel').on('hidden.bs.collapse', ()=> localStorage.setItem('pivot_controls_open','0'));
+    });*/
+    // ————— STATE PERSISTENCE + EVENTS —————
+    document.addEventListener('DOMContentLoaded', () => {
+      const panel = document.getElementById('controlsPanel');
+      const btn   = document.getElementById('toggleFiltersBtn');
+
+      // 1) Áp trạng thái đã lưu (mặc định mở nếu chưa có key)
+      const saved = localStorage.getItem('pivot_controls_open');
+      const wantOpen = (saved !== '0');
+      panel.classList.toggle('show', wantOpen);
+      btn?.setAttribute('aria-expanded', String(wantOpen));
+
+      // 2) Tạo instance collapse (không auto-toggle)
+      if (window.bootstrap?.Collapse) {
+        bootstrap.Collapse.getOrCreateInstance(panel, { toggle: false });
+      } else if (window.jQuery && typeof jQuery.fn?.collapse === 'function') {
+        $(panel).collapse({ toggle:false });
+      }
+
+      // 3) Đồng bộ theo trạng thái THẬT
+      const syncState = (isOpen) => {
+        btn?.setAttribute('aria-expanded', String(isOpen));
+        localStorage.setItem('pivot_controls_open', isOpen ? '1' : '0');
+      };
+
+      if (window.jQuery && typeof jQuery.fn?.collapse === 'function') {
+        $('#controlsPanel').on('shown.bs.collapse', ()=> syncState(true));
+        $('#controlsPanel').on('hidden.bs.collapse', ()=> syncState(false));
+      } else if (window.bootstrap?.Collapse) {
+        panel.addEventListener('shown.bs.collapse', ()=> syncState(true));
+        panel.addEventListener('hidden.bs.collapse', ()=> syncState(false));
+      }
+    });
+
+    // ————— TOGGLE HÀM GIỐNG MẪU BẠN —————
+    function pg_pivot_toggleFilters(){
+      const panel = document.getElementById('controlsPanel');
+
+      if (window.bootstrap?.Collapse) {
+        // BS5: dùng instance có sẵn, quyết định show/hide theo class 'show'
+        const inst = bootstrap.Collapse.getOrCreateInstance(panel, { toggle: false });
+        panel.classList.contains('show') ? inst.hide() : inst.show();
+
+      } else if (window.jQuery && typeof jQuery.fn?.collapse === 'function') {
+        // BS4 + jQuery plugin
+        $('#controlsPanel').collapse('toggle');
+
+      } else {
+        // Fallback thuần JS (không Bootstrap)
+        const isOpen = !panel.classList.contains('show');
+        panel.classList.toggle('show', isOpen);
+        // đồng bộ localStorage + aria
+        const btn = document.getElementById('toggleFiltersBtn');
+        btn?.setAttribute('aria-expanded', String(isOpen));
+        localStorage.setItem('pivot_controls_open', isOpen ? '1' : '0');
+        // hiển thị/ẩn bằng style
+        panel.style.display = isOpen ? '' : 'none';
+      }
+    }
+
+    function initPivotModal(){
+      const data = pg_general_3_cachedDataHieuSuat;
+      if (!Array.isArray(data) || data.length < 2) { console.error("Dữ liệu không hợp lệ!"); return; }
+
+      const headers = data[0];
+      const body = data.slice(1);
+
+      // helpers
+      const $id = (id)=>document.getElementById(id);
+      const $jq = window.jQuery || null;
+
+      function makeOpt(val, text){ const o=document.createElement('option'); o.value=String(val); o.textContent=text; return o; }
+      function setupDual(addBtn, removeBtn, upBtn, downBtn, availId, chosenId){
+        const avail=$id(availId), chosen=$id(chosenId);
+        $id(addBtn).onclick=()=>{
+          const chosenVals=new Set(Array.from(chosen.options).map(o=>o.value));
+          Array.from(avail.selectedOptions).forEach(op=>{ if(!chosenVals.has(op.value)) chosen.appendChild(op.cloneNode(true)); });
+        };
+        $id(removeBtn).onclick=()=>{ Array.from(chosen.selectedOptions).forEach(op=> chosen.removeChild(op)); };
+        if (upBtn) $id(upBtn).onclick=()=>{
+          Array.from(chosen.selectedOptions).forEach(op=>{ const prev=op.previousElementSibling; if(prev) chosen.insertBefore(op,prev); });
+        };
+        if (downBtn) $id(downBtn).onclick=()=>{
+          Array.from(chosen.selectedOptions).reverse().forEach(op=>{ const nxt=op.nextElementSibling; if(nxt) chosen.insertBefore(nxt,op); });
+        };
+      }
+      function selectedIndices(selectId){ return Array.from($id(selectId).options).map(o=>+o.value); }
+      function selectedTexts(selectId){ return Array.from($id(selectId).options).map(o=>o.textContent); }
+
+      // Fill duals for Key/Val/G1
+      headers.forEach((h,i)=>{
+        $id('keysAvail').appendChild(makeOpt(i, `${h} — [${i+1}]`));
+        $id('valsAvail').appendChild(makeOpt(i, `${h} — [${i+1}]`));
+        $id('g1Avail').appendChild(makeOpt(i, `${h} — [${i+1}]`));
+      });
+      setupDual('keysAdd','keysRemove','keysUp','keysDown','keysAvail','keysChosen');
+      setupDual('valsAdd','valsRemove',null,null,'valsAvail','valsChosen');
+      setupDual('g1Add','g1Remove','g1Up','g1Down','g1Avail','g1Chosen');
+
+      // KỲ
+      const kyIdx = headers.findIndex(h => /^KỲ NGHIỆM THU$/i.test(String(h).trim()));
+      if (kyIdx === -1) { $id('msg').textContent='Không tìm thấy cột "KỲ NGHIỆM THU".'; return; }
+
+      const kySet = new Set();
+      body.forEach(r=>{
+        const v=String(r[kyIdx]??'').trim();
+        if(/^T\d{1,2}\.\d{4}$/.test(v)) kySet.add(v);
+      });
+      const kyAll = Array.from(kySet).sort((a,b)=>{
+        const A=parseKy(a), B=parseKy(b);
+        if (A.year!==B.year) return A.year-B.year;
+        return A.month-B.month;
+      });
+
+      // Fill kỳ gốc
+      const elKyChonSelect = $id('kyChonSelect');
+      if (elKyChonSelect) {
+        kyAll.forEach(k => elKyChonSelect.appendChild(makeOpt(k, k)));
+        if (kyAll.length) elKyChonSelect.value = kyAll[kyAll.length - 1];
+      }
+
+      // Fill kỳ so sánh dual
+      function refreshKyDual() {
+        if (!elKyChonSelect) return;
+        const base = elKyChonSelect.value;
+        const chosenTexts = new Set(selectedTexts('kyChosen')); // giữ các kỳ đã chọn nếu vẫn hợp lệ
+        const elAvail = $id('kyAvail');
+        const elChosen = $id('kyChosen');
+        if (elAvail) elAvail.innerHTML = '';
+        if (elChosen) elChosen.innerHTML = '';
+        kyAll.filter(k => k !== base).forEach(k => {
+          const opt = makeOpt(k, k);
+          if (chosenTexts.has(k)) {
+            elChosen && elChosen.appendChild(opt);
+          } else {
+            elAvail && elAvail.appendChild(opt);
+          }
+        });
+      }
+      refreshKyDual();
+      if (elKyChonSelect) elKyChonSelect.addEventListener('change', refreshKyDual);
+      setupDual('kyAdd', 'kyRemove', 'kyUp', 'kyDown', 'kyAvail', 'kyChosen');
+
+      // Reset
+      const btnResetEl = $id('btnReset');
+      if (btnResetEl) {
+        btnResetEl.onclick = () => {
+        // 1) Hủy bảng hiện tại (destroy DataTables) và xoá DOM #dataTableSoSanh
+        const $jq = window.jQuery || null;
+        try {
+          if ($jq && $jq.fn && $jq.fn.DataTable && $jq.fn.DataTable.isDataTable('#dataTableSoSanh')) {
+            const dt = $jq('#dataTableSoSanh').DataTable();
+            if (dt.state && dt.state.clear) dt.state.clear(); // xóa stateSave
+            dt.clear();
+            dt.destroy();
+          }
+        } catch (err) {
+          console.warn('Destroy DataTable error:', err);
+        }
+        const tblContainer = $id('dataTableSoSanh_container2');
+        if (tblContainer) tblContainer.innerHTML = '';
+
+        // 2) Reset Kỳ gốc: chọn kỳ mới nhất
+        const baseKy = kyAll[kyAll.length - 1] || '';
+        $id('kyChonSelect').value = baseKy;
+
+        // 3) Reset Kỳ so sánh
+        const kyAvail = $id('kyAvail');
+        const kyChosen = $id('kyChosen');
+        kyAvail.innerHTML = '';
+        kyChosen.innerHTML = '';
+        kyAll.forEach(k => { if (k !== baseKy) kyAvail.appendChild(makeOpt(k, k)); });
+
+        // 4) Reset các dual-list: Key / Value / Nhóm 1
+        const rebuildDual = (availId, chosenId) => {
+          const avail = $id(availId);
+          const chosen = $id(chosenId);
+          avail.innerHTML = '';
+          chosen.innerHTML = '';
+          headers.forEach((h, i) => {
+            const op = document.createElement('option');
+            op.value = String(i);
+            op.textContent = `${h} — [${i + 1}]`;
+            avail.appendChild(op);
+          });
+        };
+        rebuildDual('keysAvail', 'keysChosen');
+        rebuildDual('valsAvail', 'valsChosen');
+        rebuildDual('g1Avail',   'g1Chosen');
+
+        // 5) Thông báo trạng thái
+        const msgEl = $id('msg');
+        if (msgEl) msgEl.textContent = 'Đã reset bộ chọn và xoá bảng kết quả.';
+
+        // 6) Mở lại panel điều khiển (show collapse)
+        const controlsPanelEl = $id('controlsPanel');
+        if (controlsPanelEl) {
+          if ($jq && typeof $jq.fn?.collapse === 'function') {
+            // jQuery + Bootstrap Collapse
+            $jq(controlsPanelEl).collapse('show');
+          } else if (window.bootstrap?.Collapse) {
+            // Bootstrap 5 JS API
+            const inst = bootstrap.Collapse.getOrCreateInstance(controlsPanelEl, { toggle: false });
+            inst.show();
+          } else {
+            // Fallback thuần
+            controlsPanelEl.classList.remove('hidden');
+            controlsPanelEl.removeAttribute('hidden');
+            controlsPanelEl.style.display = '';
+          }
+          // (Tuỳ chọn) cuộn lên vị trí panel
+          controlsPanelEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+          console.warn('Không tìm thấy #controlsPanel để mở (show).');
+        }
+        };
+      }
+
+      // Run
+      $id('btnRunPivot').onclick = ()=>{
+        try {
+          const keys = selectedIndices('keysChosen');
+          const vals = selectedIndices('valsChosen');
+          const g1 = selectedIndices('g1Chosen');
+          const kyChon = $id('kyChonSelect').value;
+          const kyCompare = Array.from($id('kyChosen').options).map(o=>o.value);
+
+          if(!keys.length) throw new Error("Chọn ít nhất 1 cột Key.");
+          if(!vals.length) throw new Error("Chọn ít nhất 1 cột Giá trị.");
+          if(!g1.length) throw new Error("Chọn ít nhất 1 cột cho Nhóm 1.");
+          if(!kyChon) throw new Error("Chọn Kỳ gốc.");
+
+          const pivotObj = pivotGeneral_SoSanh_ColumnG1(
+            data, keys, g1, vals, kyChon, kyCompare
+          );
+          pg_pivot_taoBang(pivotObj, 'dataTableSoSanh_container2', { 
+            keyCols: keys.length
+          });
+
+          // Thu gọn bộ lọc sau khi chạy để nhường chỗ cho bảng
+          const controlsPanelEl = $id('controlsPanel');
+          if (controlsPanelEl) {
+            if ($jq && typeof $jq.fn?.collapse === 'function') {
+              $jq(controlsPanelEl).collapse('hide');
+            } else if (window.bootstrap?.Collapse) {
+              const inst = bootstrap.Collapse.getOrCreateInstance(controlsPanelEl, { toggle: false });
+              inst.hide();
+            } else {
+              //controlsPanelEl.classList.add('hidden'); // fallback CSS
+              $('#controlsPanel').on('hidden.bs.collapse', ()=> localStorage.setItem('pivot_controls_open','0'));
+            }
+          } else {
+            console.warn('Không tìm thấy #controlsPanel để collapse.');
+          }
+
+          $id('msg').textContent = 'Đã tạo bảng so sánh.';
+        } catch(e){
+          $id('msg').textContent = 'Lỗi: ' + e.message;
+          console.error(e);
+        }
+      };
+    }
+
+    /**
+     * (GIỮ NGUYÊN) pivotGeneral_SoSanh_ColumnG1 & pg_pivot_taoBang
+     * ... NGUYÊN BẢN NHƯ BẠN ĐÃ GỬI ...
+     */
+    /* --- dán NGUYÊN si hàm pivotGeneral_SoSanh_ColumnG1 và pg_pivot_taoBang của bạn vào đây (không đổi) --- */
+    /**
+     * PIVOT:
+     * - Key -> rows
+     * - Nhóm 1 -> columns (dưới từng KỲ)
+     * - Nhiều cột Giá trị được cộng dồn.
+     * - Có cột % +/− vs cho mỗi KỲ so sánh (so với KỲ gốc), tính trên "Tổng" theo KỲ.
+     * Trả về object:
+     *   { data: [...], meta: { headerGroups: {row1, row2}, kyChonTotalIdx } }
+     *  (ĐÃ CHỈNH THỨ TỰ CỘT: ở MỌI KỲ đều là "Tổng" trước, rồi tới từng G1 → đồng nhất header dòng 2)
+     */
+    function pivotGeneral_SoSanh_ColumnG1(data, keyIdx, groupIdx, valueIdxArr, kyChon, kyCompareArr){
+      const header = data[0], rows = data.slice(1);
+      const kyIdx = header.findIndex(h => /^KỲ NGHIỆM THU$/i.test(String(h).trim()));
+      if (kyIdx === -1) throw new Error('Không tìm thấy cột "KỲ NGHIỆM THU".');
+
+      const kySet = new Set();
+      const g1ValueSet = new Set();
+
+      const getG1Key = row => groupIdx.map(i=> String(row[i] ?? '')).join(' | ');
+      const getKeyKey = row => keyIdx.map(i=> String(row[i] ?? '')).join(' | ');
+      const sumValues = row => valueIdxArr.reduce((s,vid)=>{
+        const v = Number(String(row[vid]??'').replace(/,/g,'')); return s + (Number.isFinite(v)?v:0);
+      },0);
+
+      // collect domain
+      rows.forEach(r=>{
+        const ky = String(r[kyIdx]??'').trim();
+        if(/^T\d{1,2}\.\d{4}$/.test(ky)) kySet.add(ky);
+        g1ValueSet.add(getG1Key(r));
+      });
+
+      const parseKy = (ky)=>{
+        const m = /^T(\d{1,2})\.(\d{4})$/.exec(String(ky||'').trim());
+        if (!m) return {y:Infinity, m:Infinity, raw:ky};
+        return {y:+m[2], m:+m[1], raw:ky};
+      };
+
+      const kyAll = Array.from(kySet).sort((a,b)=>{
+        const A=parseKy(a), B=parseKy(b);
+        if (A.y!==B.y) return A.y-B.y;
+        if (A.m!==B.m) return A.m-B.m;
+        return String(A.raw).localeCompare(String(B.raw),'vi');
+      });
+
+      if (!kyAll.includes(kyChon)) throw new Error(`Kỳ gốc "${kyChon}" không tồn tại.`);
+
+      // sanitize kyCompareArr
+      const kyCompare = (Array.isArray(kyCompareArr)? kyCompareArr:[])
+        .filter(k=>k && k!==kyChon && kyAll.includes(k));
+
+      const g1Values = Array.from(g1ValueSet).sort((a,b)=> String(a).localeCompare(String(b),'vi'));
+
+      // aggregation: rowKey -> { keyVals, byKy: {ky: {g1:sum}} }
+      const agg = Object.create(null);
+      rows.forEach(r=>{
+        const ky = String(r[kyIdx]??'').trim();
+        if (!kyAll.includes(ky)) return;
+        const rowKey = getKeyKey(r);
+        const g1Key = getG1Key(r);
+        const val = sumValues(r);
+
+        if (!agg[rowKey]) agg[rowKey] = { keyVals: keyIdx.map(i=>r[i]??''), byKy: Object.create(null) };
+        if (!agg[rowKey].byKy[ky]) agg[rowKey].byKy[ky] = Object.create(null);
+        agg[rowKey].byKy[ky][g1Key] = (agg[rowKey].byKy[ky][g1Key]||0) + val;
+      });
+
+      // helper for labels
+      const kyTot = (ky)=> `${ky} (Tổng)`;
+      const kyG1  = (ky,g)=> `${ky} — ${g||'(blank)'}`;
+
+      // Build flat leaf headers + 2-row header groups (đồng nhất thứ tự: Tổng trước, rồi G1 cho MỌI kỳ)
+      const keyHeaders = keyIdx.map(i=>header[i]);
+      const leafHeaders = [...keyHeaders];
+      const row1 = []; const row2 = [];
+
+      // row1: keys (rowspan=2)
+      keyHeaders.forEach(lbl => row1.push({ label: lbl, rowspan: 2, colspan: 1 }));
+
+      // row1 groups cho các kỳ so sánh
+      kyCompare.forEach(ky=>{
+        row1.push({ label: ky, rowspan: 1, colspan: 1 + g1Values.length });
+        // Tổng trước
+        leafHeaders.push(kyTot(ky));
+        row2.push({ label: 'Tổng', rowspan: 1, colspan: 1 });
+        // rồi G1
+        g1Values.forEach(gv=>{
+          leafHeaders.push(kyG1(ky, gv));
+          row2.push({ label: gv || '(blank)', rowspan: 1, colspan: 1 });
+        });
+      });
+
+      // Kỳ gốc: cũng Tổng trước, rồi G1 (đồng nhất)
+      row1.push({ label: kyChon, rowspan: 1, colspan: 1 + g1Values.length });
+      const kyChonTotalLabel = kyTot(kyChon);
+      leafHeaders.push(kyChonTotalLabel);
+      row2.push({ label: 'Tổng', rowspan: 1, colspan: 1 });
+      g1Values.forEach(gv=>{
+        leafHeaders.push(kyG1(kyChon, gv));
+        row2.push({ label: gv || '(blank)', rowspan: 1, colspan: 1 });
+      });
+
+      // % vs group (nếu có kỳ so sánh) — so sánh Tổng của kỳ gốc với từng kỳ so sánh
+      if (kyCompare.length){
+        row1.push({ label: '% +/- so với kỳ gốc', rowspan:1, colspan: kyCompare.length });
+        kyCompare.forEach(ky=>{
+          leafHeaders.push(`%+/- vs ${kyTot(ky)}`);
+          row2.push({ label: `vs ${ky}`, rowspan:1, colspan:1 });
+        });
+      }
+
+      // index cột "Tổng" của kỳ gốc (dùng cho footer % khi lọc)
+      const kyChonTotalIdx = leafHeaders.findIndex(h => String(h).trim() === kyChonTotalLabel);
+
+      // rows
+      const result = [leafHeaders];
+      const rowKeysSorted = Object.keys(agg).sort((a,b)=> a.localeCompare(b,'vi'));
+      rowKeysSorted.forEach(k=>{
+        const rec = agg[k];
+        const out = [...rec.keyVals];
+
+        // ky compare: Tổng + g1 (đồng nhất)
+        kyCompare.forEach(ky=>{
+          const dict = rec.byKy[ky] || {};
+          const tot = g1Values.reduce((s,gv)=> s + (Number(dict[gv])||0), 0);
+          out.push(tot);
+          g1Values.forEach(gv => out.push(Number(dict[gv])||0));
+        });
+
+        // kyChon: Tổng trước + g1 (đồng nhất)
+        const dictG = rec.byKy[kyChon] || {};
+        const totG = g1Values.reduce((s,gv)=> s + (Number(dictG[gv])||0), 0);
+        out.push(totG);
+        g1Values.forEach(gv => out.push(Number(dictG[gv])||0));
+
+        // % vs: (Tổng kỳ gốc / Tổng kỳ so sánh - 1)
+        kyCompare.forEach(ky=>{
+          const dict = rec.byKy[ky] || {};
+          const tot = g1Values.reduce((s,gv)=> s + (Number(dict[gv])||0), 0);
+          let cmp = 0;
+          if (tot === 0) cmp = (totG === 0) ? 0 : 1;
+          else cmp = (totG / tot) - 1;
+          out.push(cmp);
+        });
+
+        result.push(out);
+      });
+
+      // meta for 2-row header + vị trí tổng kỳ gốc
+      const headerGroups = { row1, row2 };
+      return { data: result, meta: { headerGroups, kyChonTotalIdx } };
+    }
+
+    /**
+     * Render bảng với DataTables.
+     * - Hỗ trợ header 2 dòng qua meta.headerGroups {row1:[], row2:[]}
+     * - keyCols: số cột text đầu (Key)
+     * - Dùng meta.kyChonTotalIdx để tính tổng % khi lọc (không phụ thuộc cột số cuối)
+     */
+    function pg_pivot_taoBang(pivotObj, containerId='dataTableSoSanh_container2', options={}){
+      const dataArray = Array.isArray(pivotObj) ? pivotObj : pivotObj.data;
+      const meta = Array.isArray(pivotObj) ? {} : (pivotObj.meta || {});
+      const headerGroups = options.headerGroups || meta.headerGroups || null;
+      const kyChonTotalIdx = (typeof options.kyChonTotalIdx === 'number') ? options.kyChonTotalIdx : meta.kyChonTotalIdx;
+
+      if (!Array.isArray(dataArray) || dataArray.length === 0) { console.error("Dữ liệu không hợp lệ!"); return; }
+
+      const keyColsCount = Math.max(0, Number(options.keyCols || 0));
+
+      // ensure CSS
+      (function ensureAlignCSS(){
+        if (!document.getElementById('pg_pivot_align_css')) {
+          const style=document.createElement('style'); style.id='pg_pivot_align_css';
+          style.textContent = `
+            .right-align { text-align: right !important; }
+            .center-align { text-align: center !important; }
+            .left-align { text-align: left !important; }
+          `;
+          document.head.appendChild(style);
+        }
+      })();
+
+      const headers = dataArray[0];
+      const rows = dataArray.slice(1);
+
+      // Identify % columns via leaf headers
+      const PERCENT_COLS = [];
+      headers.forEach((h,i)=>{
+        if (/^%\+\/-\s*vs\s+.+$/i.test(String(h))) PERCENT_COLS.push(i);
+      });
+
+      const TEXT_COLS = Array.from({length:keyColsCount}, (_,i)=>i);
+      const NUMERIC_COLS = [];
+      headers.forEach((_,i)=>{ if(!TEXT_COLS.includes(i) && !PERCENT_COLS.includes(i)) NUMERIC_COLS.push(i); });
+
+      // Precompute totals for footer
+      const totalRow = new Array(headers.length).fill(0);
+      rows.forEach(row=>{
+        NUMERIC_COLS.forEach(ci=>{
+          const n = Number(String(row[ci]??'').replace(/,/g,''));
+          if (Number.isFinite(n)) totalRow[ci] += n;
+        });
+      });
+
+      const formatPercent = (v)=> Number.isFinite(v) ? (v*100).toFixed(2)+'%' : '0%';
+
+      // Map % col -> base "Tổng" col theo label sau "vs "
+      const percentBaseIndexByCol = new Map();
+      PERCENT_COLS.forEach(pcIdx=>{
+        const h = String(headers[pcIdx]??'');
+        const m = h.match(/^%\+\/-\s*vs\s+(.+)$/i);
+        let baseIdx = null;
+        if (m){
+          const baseLabel = m[1].trim(); // ví dụ "T3.2025 (Tổng)"
+          const idx = headers.findIndex(x=> String(x).trim() === baseLabel);
+          if (idx >= 0) baseIdx = idx;
+        }
+        percentBaseIndexByCol.set(pcIdx, baseIdx);
+      });
+
+      // Tổng của "kỳ gốc (Tổng)" để làm tử số khi tính % tại footer
+      const kyChonTotalIdxGlobal = (typeof kyChonTotalIdx === 'number' && kyChonTotalIdx >= 0) ? kyChonTotalIdx : null;
+      const kyChonTotalAll = kyChonTotalIdxGlobal!=null ? Number(totalRow[kyChonTotalIdxGlobal]) : NaN;
+
+      const percentTotalsByCol = new Map();
+      PERCENT_COLS.forEach(pcIdx=>{
+        const baseIdx = percentBaseIndexByCol.get(pcIdx);
+        const baseTotal = baseIdx!=null ? Number(totalRow[baseIdx]) : NaN;
+        let ratio = 0;
+        if (Number.isFinite(kyChonTotalAll) && Number.isFinite(baseTotal) && baseTotal!==0){
+          ratio = kyChonTotalAll / baseTotal - 1;
+        }
+        percentTotalsByCol.set(pcIdx, formatPercent(ratio));
+      });
+
+      // Build THEAD (2 dòng nếu có headerGroups)
+      const tableId = 'dataTableSoSanh';
+      let theadHtml = '';
+      if (headerGroups && headerGroups.row1 && headerGroups.row2){
+        const r1 = headerGroups.row1.map(c=>`<th scope="col" colspan="${c.colspan}" rowspan="${c.rowspan}" style="white-space:nowrap; text-align:center;">${c.label}</th>`).join('');
+        const r2 = headerGroups.row2.map(c=>`<th scope="col" colspan="${c.colspan}" rowspan="${c.rowspan}" style="white-space:nowrap; text-align:center;">${c.label}</th>`).join('');
+        theadHtml = `
+          <thead class="table-warning font-weight-bold">
+            <tr>${r1}</tr>
+            <tr>${r2}</tr>
+          </thead>
+        `;
+      } else {
+        theadHtml = `
+          <thead class="table-warning font-weight-bold">
+            <tr>${headers.map(h=>`<th scope="col" style="white-space:nowrap; text-align:center;">${h}</th>`).join('')}</tr>
+          </thead>
+        `;
+      }
+
+      const tbodyHtml = `
+        <tbody>
+          ${rows.map(row=>{
+            const tds = headers.map((_,ci)=>{
+              const val = row[ci] ?? '';
+              return `<td>${val === '' ? '' : String(val)}</td>`;
+            }).join('');
+            return `<tr>${tds}</tr>`;
+          }).join('')}
+        </tbody>
+      `;
+
+      const tfootHtml = `
+        <tfoot>
+          <tr class="table-warning font-weight-bold">
+            ${headers.map((_,ci)=>{
+              if (NUMERIC_COLS.includes(ci)) {
+                return `<td style="white-space:nowrap; text-align:right;"><strong>${Number(totalRow[ci]).toLocaleString('vi-VN')}</strong></td>`;
+              }
+              if (PERCENT_COLS.includes(ci)) {
+                const p = percentTotalsByCol.get(ci) ?? '0%';
+                return `<td style="white-space:nowrap; text-align:right;"><strong>${p}</strong></td>`;
+              }
+              return `<td style="white-space:nowrap;">${ci===0?'<strong>Grand total</strong>':''}</td>`;
+            }).join('')}
+          </tr>
+        </tfoot>
+      `;
+
+      const tableHtml = `
+        <table class="table table-sm" id="${tableId}" style="table-layout:auto; width:auto;">
+          ${theadHtml}
+          ${tbodyHtml}
+          ${tfootHtml}
+        </table>
+      `;
+
+      const container = document.getElementById(containerId);
+      if (!container){ console.error("Không tìm thấy container:", containerId); return; }
+      container.innerHTML = `<div style="width:100%;">${tableHtml}</div>`;
+
+      // DataTables
+      $(document).ready(function(){
+        const percentTargets = PERCENT_COLS.slice();
+        const numericTargets = NUMERIC_COLS.slice();
+        const textTargets = Array.from({length:keyColsCount}, (_,i)=>i);
+
+        function recalcFooter(dtInstance){
+          const totals = new Array(headers.length).fill(0);
+          const parseNumber=(v)=>{ if(v==null||v==='') return 0; const n=Number(String(v).replace(/[%\s,]/g,'')); return Number.isFinite(n)?n:0; };
+
+          numericTargets.forEach(ci=>{
+            const colData = dtInstance.column(ci, {filter:'applied'}).data().toArray();
+            totals[ci] = colData.reduce((acc,val)=> acc + parseNumber(val), 0);
+          });
+
+          // Tìm tổng của "kỳ gốc (Tổng)" đã render
+          const kyChonTotalIdxLocal = kyChonTotalIdxGlobal;
+          const kyChonTotalLocal = kyChonTotalIdxLocal!=null ? Number(totals[kyChonTotalIdxLocal]) : NaN;
+
+          const $tfootCells = $(`#${tableId} tfoot tr`).children('td');
+          headers.forEach((_,ci)=>{
+            if (numericTargets.includes(ci)){
+              $tfootCells.eq(ci).html(`<strong>${Number(totals[ci]).toLocaleString('vi-VN')}</strong>`);
+            } else if (percentTargets.includes(ci)){
+              const baseIdx = percentBaseIndexByCol.get(ci);
+              const baseTotalLocal = baseIdx!=null ? Number(totals[baseIdx]) : NaN;
+              let ratio = 0;
+              if (Number.isFinite(kyChonTotalLocal) && Number.isFinite(baseTotalLocal) && baseTotalLocal!==0){
+                ratio = kyChonTotalLocal / baseTotalLocal - 1;
+              }
+              $tfootCells.eq(ci).html(`<strong>${formatPercent(ratio)}</strong>`);
+            } else {
+              if (ci===0) $tfootCells.eq(ci).html('<strong>Subtotal</strong>');
+            }
+          });
+        }
+
+        const dt = $(`#${tableId}`).DataTable({
+          responsive:false, scrollX:true, autoWidth:false, stateSave:true,
+          paging:false, ordering: headers.length >= 3,
+          order: headers.length >= 2 ? [[0,'asc']] : [],
+          pageLength: 10,
+          lengthMenu: [[10,25,50,100,-1], ['10','25','50','100','Tất cả']],
+          language:{
+            lengthMenu:"_MENU_ ", zeroRecords:"Không tìm thấy", info:"Hiển thị _START_ đến _END_ trong _TOTAL_ dòng",
+            infoEmpty:"Không có dữ liệu", search:'<i class="fas fa-search"></i>:', paginate:{ first:"Đầu", previous:"‹", next:"›", last:"Cuối" }
+          },
+          columnDefs:[
+            {
+              targets:numericTargets,
+              className:'all right-align',
+              render:function(data,type){
+                if (type==='display' || type==='filter'){
+                  if (data==null || data==='') return '0';
+                  const n=Number(String(data).replace(/,/g,'')); return Number.isFinite(n)? n.toLocaleString('vi-VN') : String(data);
+                }
+                if (type==='sort' || type==='type'){ const n=Number(String(data).replace(/,/g,'')); return Number.isFinite(n)?n:0; }
+                return data ?? '';
+              }
+            },
+            {
+              targets:percentTargets,
+              className:'all right-align',
+              render:function(data,type){
+                if (type==='display' || type==='filter'){
+                  const v=Number(String(data).replace(/,/g,'')); if(!Number.isFinite(v)) return '0%';
+                  return (v*100).toFixed(2)+'%';
+                }
+                if (type==='sort' || type==='type'){ const v=Number(String(data).replace(/,/g,'')); return Number.isFinite(v)?v:0; }
+                return data ?? '';
+              }
+            },
+            {
+              targets:textTargets,
+              className:'left-align',
+              type:'string',
+              render: (d)=> d ?? ''
+            }
+          ],
+          drawCallback: function(){ recalcFooter(this.api()); },
+          createdRow: function(row){ $(row).css('table-layout','fixed'); }
+        });
+
+        recalcFooter(dt);
+        dt.columns.adjust().draw();
+      });
+    }
+
+    // utils
+    function parseKy(ky){
+      const m=/^T(\d{1,2})\.(\d{4})$/.exec(String(ky||'').trim());
+      if(!m) return {year:Infinity, month:Infinity, raw:ky};
+      return {year:+m[2], month:+m[1], raw:ky};
+    }
+
+    // init when modal shown
+    $('#soSanhPivotModal').on('shown.bs.modal', function(){ initPivotModal(); });
+
+
+    (function(){
+      const THEME_KEY = 'pivot_theme'; // light | dark
+
+      // Gọi mỗi khi cần cập nhật icon + aria cho nút
+      function updateThemeButton(uiRoot){
+        const btn = document.getElementById('btnTheme');
+        if (!btn) return;
+        const isLight = uiRoot.getAttribute('data-theme') === 'light';
+        btn.innerHTML = isLight 
+          ? '<i class="fa-solid fa-moon"></i>' 
+          : '<i class="fa-solid fa-sun"></i>';
+        btn.setAttribute('aria-pressed', String(isLight));
+        btn.title = isLight ? 'Chuyển sang giao diện tối' : 'Chuyển sang giao diện sáng';
+      }
+
+      // Public: gọi từ nút
+      window.pg_pivot_toggleTheme = function(){
+        const root = document.getElementById('soSanhPivotModal');
+        if (!root) return;
+        const nowLight = root.getAttribute('data-theme') === 'light';
+        const to = nowLight ? 'dark' : 'light';
+        if (to === 'light') root.setAttribute('data-theme','light'); else root.removeAttribute('data-theme');
+        try { localStorage.setItem(THEME_KEY, to); } catch(e){}
+        updateThemeButton(root);
+      };
+
+      // Áp theme khi DOM sẵn sàng (và mỗi lần modal mở)
+      document.addEventListener('DOMContentLoaded', ()=>{
+        const root = document.getElementById('soSanhPivotModal');
+        if (!root) return;
+        const saved = localStorage.getItem(THEME_KEY) || 'light'; // mặc định LIGHT theo ý bạn
+        if (saved === 'light') root.setAttribute('data-theme','light'); else root.removeAttribute('data-theme');
+        updateThemeButton(root);
+      });
+
+      // Nếu muốn chắc chắn khi modal show lại cũng set đúng (đề phòng SPA)
+      if (window.jQuery) {
+        $('#soSanhPivotModal').on('shown.bs.modal', function(){
+          const root = document.getElementById('soSanhPivotModal');
+          const saved = localStorage.getItem(THEME_KEY) || 'light';
+          if (saved === 'light') root.setAttribute('data-theme','light'); else root.removeAttribute('data-theme');
+          updateThemeButton(root);
+        });
+      }
+    })();
+  </script>
+</body>
+</html>
+
+
+

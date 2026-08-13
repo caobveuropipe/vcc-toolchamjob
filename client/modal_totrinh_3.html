@@ -1,0 +1,849 @@
+<script>
+  $(document).ready(function () {
+    $("#modal_totrinh_2_kyluong, #modal_totrinh_2_kynt, #modal_totrinh_2_loaiToTrinh").each(function () {
+      $(this).select2({
+        theme: "bootstrap-5",
+        allowClear: true,
+        width: 'style', // Dùng 'style' thay vì 'resolve' để giữ nguyên kích thước
+        placeholder: $(this).attr("title"), // Đặt placeholder đúng
+        dropdownParent: $("#modal_totrinh_2_Modal"), // Fix lỗi hiển thị trong modal
+      }).on("select2:clear", function () {
+        // Thay vì đặt giá trị null, hãy đặt lại placeholder
+        $(this).val("").trigger("change");
+      });
+    });
+  });
+
+  // Sự kiện khi chọn loại tờ trình
+  $("#modal_totrinh_2_loaiToTrinh").on("change", function () {
+    let h4Element = $(".document-header h4");
+    let selectedValue = $(this).val();
+
+    if (selectedValue === "toTrinh_hieuSuat") {
+      h4Element.text("TỜ TRÌNH THANH TOÁN HIỆU SUẤT");
+    } else if (selectedValue === "toTrinh_thuong") {
+      h4Element.text("TỜ TRÌNH THƯỞNG");
+    }
+  });
+
+  // Sự kiện khi chọn kỳ lương
+  $("#modal_totrinh_2_kyluong").on("change", function () {
+    let selectedText = $("#modal_totrinh_2_kyluong option:selected").text(); // Lấy nội dung text của option được chọn
+    $("#kyLuong").text(selectedText); // Cập nhật vào <span id="kyLuong">
+  });
+  // Sự kiện khi chọn kỳ lương
+  $("#modal_totrinh_2_kynt").on("change", function () {
+    let selectedText = $("#modal_totrinh_2_kynt option:selected").text(); // Lấy nội dung text của option được chọn
+    $("#thoiGianNghiemThu").text(selectedText); // Cập nhật vào <span id="kyLuong">
+  });
+
+  // Kích hoạt sự kiện change ban đầu để đảm bảo dữ liệu hiển thị đúng
+  $("#modal_totrinh_2_loaiToTrinh, #modal_totrinh_2_kynt, #modal_totrinh_2_kyluong").trigger("change");
+
+
+  //ĐOẠN CODE TẠO DROPLIST
+  function modal_totrinh_3_taoDropDown_Kyluong() {
+    // Gọi hàm Apps Script để lấy danh sách dropdown
+    google.script.run.withSuccessHandler(dropDown_kyluong).getDropdownList("Master!Q2:Q");
+  }
+  function dropDown_kyluong(values) {
+    modal_totrinh_3_populateDropdown("modal_totrinh_2_kyluong", values);
+  }
+  function modal_totrinh_3_taoDropDown_Kynt() {
+    // Gọi hàm Apps Script để lấy danh sách dropdown
+    google.script.run.withSuccessHandler(dropDown_kynt).getDropdownList("Master!Q2:Q");
+  }
+  function dropDown_kynt(values) {
+    modal_totrinh_3_populateDropdown("modal_totrinh_2_kynt", values);
+  }
+
+  // ==== Helper đổ dữ liệu Select2 ====
+  function modal_totrinh_3_populateDropdown(selectId, values) {
+    const $sel = $('#' + selectId);
+    const current = $sel.val();
+    $sel.empty().append(
+      $('<option>', { value: '', disabled: true, selected: true, text: $sel.attr('title') })
+    );
+    (values || []).filter(Boolean).forEach(function (v) {
+      $sel.append(new Option(v, v));
+    });
+    if (current && values.includes(current)) $sel.val(current);
+    $sel.trigger('change.select2');
+  }
+  //ĐOẠN CODE SHOW TỜ TRÌNH
+  function modal_totrinh_3_ShowModal() {
+    // Khai báo tập trung các phần tử cần kiểm tra
+    const elementsToCheck = [
+      { el: document.getElementById('modal_tonghophieusuat_2_thangChiTra_DropList'), msg: "⚠️ Bạn phải chọn kỳ lương trước khi in" },
+      { el: document.getElementById('modal_tonghophieusuat_2_kyNghiemThu_DropList'), msg: "⚠️ Bạn phải chọn kỳ nghiệm thu trước khi in" },
+      { el: document.getElementById('modal_tonghophieusuat_2_loaiToTrinh'), msg: "⚠️ Bạn phải chọn tờ trình thu trước khi in" }
+    ];
+
+    for (const item of elementsToCheck) {
+      const value = item.el ? item.el.value : "";
+      if (!value) {
+        Swal.fire("Lỗi", item.msg, "error");
+        return;
+      }
+    }
+    const $modal = $('#modal_totrinh_2_Modal');
+    const $table = $('#modal_totrinh_2_table');
+    const $thead = $('#modal_totrinh_2_header');
+    const $tbody = $('#modal_totrinh_2_dataTable');
+
+    // 1) Tháo toàn bộ event trong modal (tránh double binding khi mở lại)
+    $modal.find('*').off();
+
+    // 2) Nếu có DataTables thì destroy an toàn
+    if ($.fn.DataTable && $.fn.DataTable.isDataTable($table)) {
+      $table.DataTable().clear().destroy();
+    }
+
+    // 3) Dispose tooltip/popover Bootstrap nếu có
+    $modal.find('[data-toggle="tooltip"]').tooltip('dispose');
+    $modal.find('[data-toggle="popover"]').popover('dispose');
+
+    // 4) Xoá nội dung cũ của header/body bảng
+    $thead.empty();
+    $tbody.empty();
+
+    modal_totrinh_3_loadData()
+
+    // 5) Hiển thị modal
+    $modal.modal('show');
+  }
+
+
+  //ĐOẠN CODE TẢI DỮ LIỆU
+  function modal_totrinh_3_loadData() {
+    document.getElementById("thoiGianNghiemThu").innerText = "Quý x.yyyy"; // new Date().toLocaleDateString();
+    const today = new Date();
+    const formattedDate = `Ngày ${today.getDate()} tháng ${today.getMonth() + 1} năm ${today.getFullYear()}`;
+    document.getElementById("modal_totrinh_2_ngay").innerText = formattedDate;
+
+    document.getElementById("modal_totrinh_2_sig_nguoilap").innerText = "Bùi Văn Cao";
+    document.getElementById("modal_totrinh_2_sig_leader").innerText = "Nguyễn Quốc Khánh";
+    document.getElementById("modal_totrinh_2_sig_CCL_leader").innerText = "Lê Thị Thủy";
+    document.getElementById("modal_totrinh_2_sig_BODKhoi").innerText = "Nguyễn Đăng Ngọc";
+    document.getElementById("modal_totrinh_2_sig_tongGD").innerText = "Nguyễn Thế Tân";
+
+    var bophan = "Bộ phận chưa biết";
+    document.getElementById("boPhan").innerText = bophan;
+    document.getElementById("boPhan_dong2").innerText = bophan;
+    document.getElementById("khoi").innerText = "ADM";
+
+    // Lấy giá trị hiện tại từ select để hiển thị đúng ở tờ trình
+    modal_tonghophieusuat_3_updateToTrinhFromSelections();
+
+    const data = modal_dataluong_3_getDataFromTable();
+    const transformed = modal_totrinh_3_transformPayrollData(data, /* keepTypo */ true);
+    //console.log({ raw: data, transformed });
+    modal_totrinh_3_displayData(transformed);
+
+  }
+  // Thêm mới: hàm chuyển đổi
+  function modal_totrinh_3_transformPayrollData(raw, keepTypo = true) {
+    const header = [
+      'Mã nhân sự',
+      'Họ và tên',
+      'Tổng thu nhập',
+      keepTypo ? 'Tỷ lệ đạt taret' : 'Tỷ lệ đạt target',
+      'Hiệu suất thực trả'
+    ];
+    const colOrder = [4, 5, 12, 11, 9];
+    const rows = (raw || []).map(r => colOrder.map(c => r?.[c]));
+    return [header, ...rows];
+  }
+
+  // CODE SHOW DỮ LIỆU LÊN TABLE VÀ TÍNH TỔNG
+
+  function modal_totrinh_3_displayData(data) {
+    const table = document.getElementById("modal_totrinh_2_table");
+    const thead = document.getElementById("modal_totrinh_2_header");
+    const tbody = document.getElementById("modal_totrinh_2_dataTable");
+
+    // Xóa cũ
+    thead.innerHTML = "";
+    tbody.innerHTML = "";
+
+    // Định dạng số & phần trăm
+    const numberFmt = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 });
+    const percentFmt = new Intl.NumberFormat('vi-VN', { style: 'percent', maximumFractionDigits: 1 });
+
+    // Biến tổng cho cột 4 và 6 (tính theo bảng có STT)
+    let totalCol4 = 0; // Tổng thu nhập
+    let totalCol6 = 0; // Hiệu suất thực nhận
+
+    data.forEach((row, index) => {
+      if (index === 0) {
+        // Header -> thead
+        const headerRow = document.createElement("tr");
+        const thSTT = document.createElement("th");
+        thSTT.innerText = "STT";
+        headerRow.appendChild(thSTT);
+
+        row.forEach(cell => {
+          const th = document.createElement("th");
+          th.innerText = cell;
+          headerRow.appendChild(th);
+        });
+
+        thead.appendChild(headerRow);
+        return;
+      }
+
+      // Body -> tbody
+      const newRow = document.createElement("tr");
+
+      const sttCell = document.createElement("td");
+      sttCell.innerText = index;
+      newRow.appendChild(sttCell);
+
+      row.forEach((cell, cellIndex) => {
+        const newCell = document.createElement("td");
+        const val = Number(cell);
+
+        // Map cột (0-based trong 'row'):
+        // 0 = Mã NS, 1 = Họ & Tên, 2 = (cột 4), 3 = (cột 5), 4 = (cột 6)
+        if (cellIndex === 2) {                 // Cột 4: số + cộng
+          totalCol4 += isNaN(val) ? 0 : val;
+          newCell.innerText = isNaN(val) ? cell : numberFmt.format(val);
+        } else if (cellIndex === 3) {          // Cột 5: %
+          newCell.innerText = isNaN(val) ? cell : percentFmt.format(val);
+        } else if (cellIndex === 4) {          // Cột 6: số + cộng
+          totalCol6 += isNaN(val) ? 0 : val;
+          newCell.innerText = isNaN(val) ? cell : numberFmt.format(val);
+        } else {
+          newCell.innerText = cell;
+        }
+
+        newRow.appendChild(newCell);
+      });
+
+      tbody.appendChild(newRow);
+    });
+
+    // Dòng tổng cộng (trong tbody)
+    const totalRow = document.createElement("tr");
+
+    const totalCellLabel = document.createElement("td");
+    totalCellLabel.colSpan = 3;
+    totalCellLabel.innerText = "Tổng cộng";
+    totalCellLabel.style.fontWeight = "bold";
+    totalRow.appendChild(totalCellLabel);
+
+    const totalCellCol4 = document.createElement("td");
+    totalCellCol4.innerText = numberFmt.format(totalCol4);
+    totalCellCol4.style.fontWeight = "bold";
+    totalRow.appendChild(totalCellCol4);
+
+    const totalCellCol5 = document.createElement("td");
+    totalCellCol5.innerText = ""; // Không cộng %
+    totalRow.appendChild(totalCellCol5);
+
+    const totalCellCol6 = document.createElement("td");
+    totalCellCol6.innerText = numberFmt.format(totalCol6);
+    totalCellCol6.style.fontWeight = "bold";
+    totalRow.appendChild(totalCellCol6);
+
+    tbody.appendChild(totalRow);
+  }
+
+
+
+
+  //ĐOẠN CODE IN TỜ TRÌNH
+  function modal_totrinh_3_printModalBody(modalId) {
+    // 1) Validate đối tượng modal + body
+    const modal = document.getElementById(modalId);
+    if (!modal) {
+      Swal.fire("Lỗi", "⚠️ Không tìm thấy phần modal Tờ trình.", "error");
+      return;
+    }
+
+    const modalBody = modal.querySelector(".document-container");
+    if (!modalBody) {
+      Swal.fire("Lỗi", "⚠️ Không tìm thấy phần body trong modal.", "error");
+      return;
+    }
+
+    // 3) Lấy CSS cần thiết (link + style), tránh copy toàn bộ head kèm script/meta
+    const headLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+      .map(node => node.outerHTML)
+      .join('\n');
+
+    // 4) Mở cửa sổ in - cần gọi trực tiếp trong handler click để tránh bị chặn
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    if (!printWindow) {
+      Swal.fire("Lỗi", "⚠️ Trình duyệt đã chặn cửa sổ in. Hãy tắt chặn pop-up cho trang này.", "error");
+      return;
+    }
+
+    // 5) Ghi nội dung
+    printWindow.document.open();
+    printWindow.document.write(`
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>In Phiếu</title>
+        ${headLinks}
+        <style>
+          @media print {
+            body {
+              line-height: 1.2 !important;
+              font-size: 14px !important;
+            }
+            h4 {
+              text-align: center !important;
+              font-size: 22px !important;
+              font-weight: bold !important;
+              margin-bottom: 10px !important;
+            }
+            h5 {
+              text-align: center !important;
+              font-size: 18px !important;
+              font-weight: bold !important;
+              margin-bottom: 10px !important;
+            }
+            p { margin: 5px 0 !important; }
+            .table-bordered td, .table-bordered th {
+              padding: 5px !important;
+              vertical-align: middle !important;
+            }
+            .table-bordered th {
+              text-align: center !important;
+              font-weight: bold !important;
+              background-color: #f0f0f0 !important;
+            }
+            /* === Căn giữa các cột số: 1, 2 === */
+            .table-bordered tbody tr td:nth-child(1),
+            .table-bordered tbody tr td:nth-child(2) {
+              text-align: center !important;
+              white-space: nowrap; /* tránh xuống dòng với số tiền */
+            }
+
+            /* === Căn phải các cột số: 4, 5, 6 === */
+            .table-bordered tbody tr td:nth-child(4),
+            .table-bordered tbody tr td:nth-child(5),
+            .table-bordered tbody tr td:nth-child(6) {
+              text-align: right !important;
+              white-space: nowrap; /* tránh xuống dòng với số tiền */
+            }
+            /* Bổ sung: với dòng tổng cộng, mọi ô sau colspan đều căn phải */
+            .table-bordered tbody tr td[colspan] ~ td {
+              text-align: right !important;
+              white-space: nowrap;
+            }
+            /* Ô có colspan (ví dụ: "Tổng cộng") căn giữa */
+            .table-bordered tbody tr td[colspan] {
+              text-align: center !important;
+              font-weight: 700;        /* tùy chọn: làm đậm dòng tổng */
+            }
+
+            .signature {
+              display: flex !important;
+              flex-direction: row !important;
+              justify-content: space-between !important;
+              text-align: center;
+            }
+            .signature div { width: 18% !important; }
+            .signature-date {
+              text-align: right;
+              font-weight: bold;
+              margin-bottom: 0;
+            }
+            .document-header { text-align: left; }
+            .document-header .header-center { display:inline-block; text-align:center; width:max-content; margin-bottom:6px; }
+            .document-header .header-center p { margin:0; line-height:1.25; }
+          }
+        </style>
+      </head>
+      <body>
+        ${modalBody.innerHTML}
+      </body>
+    </html>
+  `);
+    printWindow.document.close();
+
+    // 6) In sau khi render xong
+    printWindow.addEventListener('load', () => {
+      printWindow.focus();
+      setTimeout(() => {
+        try { printWindow.print(); } catch (e) { }
+      }, 150);
+    });
+  }
+
+
+
+  /**TẢI FILE EXCEL*/
+  // === Loader SheetJS (load 1 lần) ===
+  let __xlsxReady = null;
+  function ensureXLSX() {
+    if (window.XLSX) return Promise.resolve(window.XLSX);
+    if (__xlsxReady) return __xlsxReady;
+    __xlsxReady = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.19.3/dist/xlsx.full.min.js';
+      s.async = true;
+      s.onload = () => resolve(window.XLSX);
+      s.onerror = () => reject(new Error('Không tải được thư viện SheetJS (XLSX).'));
+      document.head.appendChild(s);
+    });
+    return __xlsxReady;
+  }
+
+  // === Export Excel ===
+  async function modal_totrinh_3_exportExcel() {
+    try {
+      const XLSX = await ensureXLSX();
+
+      const thead = document.getElementById("modal_totrinh_2_header");
+      const tbody = document.getElementById("modal_totrinh_2_dataTable");
+      if (!thead || !tbody) {
+        (window.Swal && Swal.fire)
+          ? Swal.fire("Lỗi", "Không tìm thấy thead/tbody để xuất.", "error")
+          : alert("Không tìm thấy thead/tbody để xuất.");
+        return;
+      }
+
+      const kyLuong = document.getElementById("kyLuong")?.innerText?.trim() || "";
+      const boPhan = document.getElementById("boPhan")?.innerText?.trim() || "";
+      const khoi = document.getElementById("khoi")?.innerText?.trim() || "";
+      const thoiGianNghiemThu = document.getElementById("thoiGianNghiemThu")?.innerText?.trim() || "";
+      const ngay = document.getElementById("modal_totrinh_2_ngay")?.innerText?.trim() || "";
+
+      const signerNguoiLap = document.getElementById("modal_totrinh_2_sig_nguoilap")?.innerText?.trim() || "";
+      const signerLeader = document.getElementById("modal_totrinh_2_sig_leader")?.innerText?.trim() || "";
+      const signerCCL = document.getElementById("modal_totrinh_2_sig_CCL_leader")?.innerText?.trim() || "";
+      const signerBODKhoi = document.getElementById("modal_totrinh_2_sig_BODKhoi")?.innerText?.trim() || "";
+      const signerTongGD = document.getElementById("modal_totrinh_2_sig_tongGD")?.innerText?.trim() || "";
+
+      const headRows = [
+        ["CÔNG TY CP VCCORP"],
+        [`Kỳ lương: ${kyLuong}`],
+        [""],
+        [`TỜ TRÌNH ${loaiToTrinh}`],
+        [`Bộ phận: ${boPhan} - Khối: ${khoi}`],
+        [""],
+        [`Thời gian nghiệm thu: ${thoiGianNghiemThu}`],
+        [""],
+      ];
+
+      const aoaTable = [];
+      const trHead = thead.querySelector("tr");
+      if (trHead) {
+        const row = [];
+        tr.querySelectorAll("th").forEach(th => row.push(th.innerText.trim()));
+        aoaTable.push(row);
+      }
+      tbody.querySelectorAll("tr").forEach(tr => {
+        const row = [];
+        tr.querySelectorAll("td").forEach(td => row.push(td.innerText.trim()));
+        aoaTable.push(row);
+      });
+      if (aoaTable.length === 0) {
+        (window.Swal && Swal.fire)
+          ? Swal.fire("Lỗi", "Bảng chưa có dữ liệu để xuất.", "error")
+          : alert("Bảng chưa có dữ liệu để xuất.");
+        return;
+      }
+
+      const signBlock = [
+        [""],
+        [ngay],
+        [""],
+        ["Người lập", "Phụ trách BP", "Trưởng BP CCL", "Lãnh đạo khối", "Lãnh đạo phê duyệt"],
+        ["(Ký, họ tên)", "(Ký, họ tên)", "(Ký, họ tên)", "(Ký, họ tên)", "(Ký, họ tên)"],
+        ["", "", "", "", ""],
+        ["", "", "", "", ""],
+        [signerNguoiLap, signerLeader, signerCCL, signerBODKhoi, signerTongGD],
+      ];
+
+      const aoa = [
+        ...headRows,
+        [""],
+        ...aoaTable,
+        [""],
+        ...signBlock
+      ];
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+      const tableStartRow0 = headRows.length + 1; // +1 dòng trống
+      const headerRow0 = tableStartRow0;
+      const dataStartRow0 = headerRow0 + 1;
+      const dataEndRow0 = dataStartRow0 + (aoaTable.length - 1) - 1;
+
+      const enc = XLSX.utils.encode_cell;
+      const toNum = (v) => {
+        if (v == null) return NaN;
+        const s = String(v).trim().replace(/\s+/g, '');
+        if (s.endsWith('%')) {
+          const n = parseFloat(s.replace('%', '').replace(/\./g, '').replace(',', '.'));
+          return isNaN(n) ? NaN : (n / 100);
+        }
+        const n = parseFloat(s.replace(/\./g, '').replace(/,/g, '.'));
+        return n;
+      };
+      for (let r = dataStartRow0; r <= dataEndRow0; r++) {
+        // Tổng thu nhập
+        let c = 3; let cell = ws[enc({ r, c })];
+        if (cell && cell.v != null) { const n = toNum(cell.v); if (!isNaN(n)) { cell.v = n; cell.t = 'n'; cell.z = '#,##0'; } }
+        // % đạt
+        c = 4; cell = ws[enc({ r, c })];
+        if (cell && cell.v != null) { const n = toNum(cell.v); if (!isNaN(n)) { cell.v = n; cell.t = 'n'; cell.z = '0.0%'; } }
+        // Hiệu suất thực nhận
+        c = 5; cell = ws[enc({ r, c })];
+        if (cell && cell.v != null) { const n = toNum(cell.v); if (!isNaN(n)) { cell.v = n; cell.t = 'n'; cell.z = '#,##0'; } }
+      }
+
+      const maxCols = Math.max(...aoa.map(r => r.length));
+      ws["!cols"] = Array.from({ length: maxCols }, () => ({ wch: 22 }));
+
+      XLSX.utils.book_append_sheet(wb, ws, "ToTrinh");
+      const safe = s => (s || "").replace(/[\\/:*?"<>|]/g, "_");
+      XLSX.writeFile(wb, `ToTrinh_HieuSuat_${safe(kyLuong)}_${safe(boPhan)}.xlsx`);
+    } catch (err) {
+      console.error(err);
+      (window.Swal && Swal.fire)
+        ? Swal.fire("Lỗi", "Không thể xuất Excel. Xem console để biết chi tiết.", "error")
+        : alert("Không thể xuất Excel.");
+    }
+  }
+
+
+  /* ===== 1) CSS dùng chung cho popup in (screen + print) ===== */
+  function modal_totrinh_3_getPrintCSS() {
+    return `
+/* --- Base: áp dụng cho SCREEN + PRINT trong cửa sổ in --- */
+html, body { line-height:1.2; font-size:14px; }
+h4 { text-align:center; font-size:22px; font-weight:700; margin-bottom:10px; }
+h5 { text-align:center; font-size:18px; font-weight:700; margin-bottom:10px; }
+p { margin:5px 0; }
+
+.table-bordered td, .table-bordered th { padding:5px; vertical-align:middle; }
+.table-bordered th { text-align:center; font-weight:700; background-color:#f0f0f0; }
+
+/* Căn các cột số */
+.table-bordered tbody tr td:nth-child(1),
+.table-bordered tbody tr td:nth-child(2) { text-align:center; white-space:nowrap; }
+.table-bordered tbody tr td:nth-child(4),
+.table-bordered tbody tr td:nth-child(5),
+.table-bordered tbody tr td:nth-child(6) { text-align:right; white-space:nowrap; }
+.table-bordered tbody tr td[colspan] ~ td { text-align:right; white-space:nowrap; }
+.table-bordered tbody tr td[colspan] { text-align:center; font-weight:700; }
+
+/* Header giữa – chữ canh trái xung quanh */
+.document-header { text-align:left; }
+.document-header .header-center {
+  display:inline-block; text-align:center; width:max-content; margin-bottom:6px;
+}
+.document-header .header-center p { margin:0; line-height:1.25; }
+
+/* Chữ ký theo hàng ngang */
+.signature {
+  display:flex; justify-content:space-between; text-align:center;
+}
+.signature div { width:18%; }
+.signature-date { text-align:right; font-weight:700; margin-bottom:0; }
+
+/* --- Chỉ còn tinh chỉnh khi in (nếu cần) --- */
+@media print {
+  /* Ví dụ muốn scale font khi in, bật dòng dưới */
+  /* html, body { font-size:13px; } */
+}
+`;
+  }
+
+  /* ===== 2) In modal body ===== */
+  function modal_totrinh_3_printModalBody(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) {
+      Swal?.fire?.("Lỗi", "⚠️ Không tìm thấy phần modal Tờ trình.", "error"); return;
+    }
+    const modalBody = modal.querySelector(".document-container");
+    if (!modalBody) {
+      Swal?.fire?.("Lỗi", "⚠️ Không tìm thấy phần body trong modal.", "error"); return;
+    }
+
+    // Chỉ lấy stylesheet + <style> hiện có (không lấy script/meta)
+    const headLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+      .map(n => n.outerHTML).join('\n');
+
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    if (!printWindow) {
+      Swal?.fire?.("Lỗi", "⚠️ Trình duyệt chặn pop-up, hãy cho phép.", "error"); return;
+    }
+
+    const PRINTLIKE_CSS = modal_totrinh_3_getPrintCSS();
+
+    printWindow.document.open();
+    printWindow.document.write(`
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>In Phiếu</title>
+        ${headLinks}
+        <style>${PRINTLIKE_CSS}</style>
+      </head>
+      <body>${modalBody.innerHTML}</body>
+    </html>
+  `);
+    printWindow.document.close();
+
+    // Gọi in + đóng tab sau khi in (tránh phải nhìn layout screen)
+    printWindow.addEventListener('load', () => {
+      printWindow.focus();
+      setTimeout(() => { try { printWindow.print(); } catch (e) { } }, 150);
+    });
+    // Đóng khi kết thúc phiên in
+    /*printWindow.addEventListener('afterprint', () => {
+      try { printWindow.close(); } catch(e) {}
+    });*/
+  }
+
+  /* ===== 3) Xuất Excel HTML giữ bố cục tương tự ===== */
+  // Drop-in replacement
+  function modal_totrinh_3_exportExcel_HTML() {
+    try {
+      const thead = document.getElementById("modal_totrinh_2_header");
+      const tbody = document.getElementById("modal_totrinh_2_dataTable");
+      if (!thead || !tbody) {
+        (window.Swal && Swal.fire)
+          ? Swal.fire("Lỗi", "Không tìm thấy thead/tbody để xuất.", "error")
+          : alert("Không tìm thấy thead/tbody để xuất.");
+        return;
+      }
+
+      // Header info
+      const kyLuong = document.getElementById("kyLuong")?.innerText?.trim() || "";
+      const boPhan = document.getElementById("boPhan")?.innerText?.trim() || "";
+      const khoi = document.getElementById("khoi")?.innerText?.trim() || "";
+      const thoiGianNghiemThu = document.getElementById("thoiGianNghiemThu")?.innerText?.trim() || "";
+      const ngay = document.getElementById("modal_totrinh_2_ngay")?.innerText?.trim() || "";
+
+      const signerNguoiLap = document.getElementById("modal_totrinh_2_sig_nguoilap")?.innerText?.trim() || "";
+      const signerLeader = document.getElementById("modal_totrinh_2_sig_leader")?.innerText?.trim() || "";
+      const signerCCL = document.getElementById("modal_totrinh_2_sig_CCL_leader")?.innerText?.trim() || "";
+      const signerBODKhoi = document.getElementById("modal_totrinh_2_sig_BODKhoi")?.innerText?.trim() || "";
+      const signerTongGD = document.getElementById("modal_totrinh_2_sig_tongGD")?.innerText?.trim() || "";
+
+      // Clone bảng để định dạng cho Excel
+      const tableEl = document.createElement("table");
+      tableEl.setAttribute("border", "1");
+      tableEl.style.borderCollapse = "collapse";
+      tableEl.style.width = "100%";
+
+      const theadClone = thead.cloneNode(true);
+      const tbodyClone = tbody.cloneNode(true);
+
+      // Chuẩn hoá số vi-VN -> ISO
+      function parseVNNumber(raw, { isPercent = false } = {}) {
+        if (raw == null) return NaN;
+        let s = String(raw).trim();
+        const hasPct = /%$/.test(s);
+        s = s.replace(/\s+/g, "").replace(/\./g, "").replace(/,/g, ".").replace(/%$/, "");
+        let n = parseFloat(s);
+        if (isNaN(n)) return NaN;
+        if (hasPct || isPercent) n = n / 100;
+        return n;
+      }
+
+      tbodyClone.querySelectorAll("tr").forEach(tr => {
+        const tds = tr.querySelectorAll("td");
+        // Tổng thu nhập
+        if (tds[3]) {
+          const n = parseVNNumber(tds[3].textContent);
+          if (!isNaN(n)) {
+            tds[3].textContent = String(n);
+            tds[3].style.msoNumberFormat = '"#,##0"';
+            tds[3].style.textAlign = "right";
+          }
+        }
+        // Tỷ lệ đạt
+        if (tds[4]) {
+          const n = parseVNNumber(tds[4].textContent, { isPercent: true });
+          if (!isNaN(n)) {
+            tds[4].textContent = String(n);
+            tds[4].style.msoNumberFormat = '"0.0%"';
+            tds[4].style.textAlign = "right";
+          }
+        }
+        // Hiệu suất thực nhận
+        if (tds[5]) {
+          const n = parseVNNumber(tds[5].textContent);
+          if (!isNaN(n)) {
+            tds[5].textContent = String(n);
+            tds[5].style.msoNumberFormat = '"#,##0"';
+            tds[5].style.textAlign = "right";
+          }
+        }
+        // Căn giữa cột 1–2
+        if (tds[0]) tds[0].style.textAlign = "center";
+        if (tds[1]) tds[1].style.textAlign = "center";
+        // Dòng tổng có colspan
+        tr.querySelectorAll("td[colspan]").forEach(td => (td.style.textAlign = "center"));
+      });
+
+      tableEl.appendChild(theadClone);
+      tableEl.appendChild(tbodyClone);
+
+      // CSS "Excel-friendly"
+      const EXCEL_CSS = `
+      table, th, td { border:1px solid #000; border-collapse:collapse; }
+      th, td { padding:4px; }
+      .center { text-align:center; }
+      .left { text-align:left; }
+      .bold { font-weight:bold; }
+      .signature-row td { text-align:center; font-weight:bold; }
+    `;
+
+      const safe = s => (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+      // ✅ SỬA Ở ĐÂY: bỏ kí tự \ trước backtick
+      const fileName = `ToTrinh_HieuSuat_${kyLuong.replace(/[\\/:*?"<>|]/g, "_")}_${boPhan.replace(/[\\/:*?"<>|]/g, "_")}.xls`;
+
+      const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8" />
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <style>${EXCEL_CSS}</style>
+      </head>
+      <body>
+        <div class="center bold">CÔNG TY CP VCCORP</div>
+        <div class="center">Kỳ lương: ${safe(kyLuong)}</div>
+        <br/>
+        <div class="center bold">TỜ TRÌNH THANH TOÁN HIỆU SUẤT</div>
+        <div class="center">Bộ phận: ${safe(boPhan)} - Khối: ${safe(khoi)}</div>
+        <div class="left">Thời gian nghiệm thu: ${safe(thoiGianNghiemThu)}</div>
+        <br/>
+        ${tableEl.outerHTML}
+        <br/>
+        <div class="left"><b>${safe(ngay)}</b></div>
+        <table style="width:100%; border:none; border-collapse:separate; border-spacing:20px 10px;">
+          <tr class="signature-row">
+            <td>Người lập<br/>(Ký, họ tên)<br/><br/><br/>${safe(signerNguoiLap)}</td>
+            <td>Phụ trách BP<br/>(Ký, họ tên)<br/><br/><br/>${safe(signerLeader)}</td>
+            <td>Trưởng BP CCL<br/>(Ký, họ tên)<br/><br/><br/>${safe(signerCCL)}</td>
+            <td>Lãnh đạo khối<br/>(Ký, họ tên)<br/><br/><br/>${safe(signerBODKhoi)}</td>
+            <td>Lãnh đạo phê duyệt<br/>(Ký, họ tên)<br/><br/><br/>${safe(signerTongGD)}</td>
+          </tr>
+        </table>
+      </body>
+      </html>`;
+
+      const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); }, 0);
+    } catch (err) {
+      console.error(err);
+      (window.Swal && Swal.fire)
+        ? Swal.fire("Lỗi", "Không thể xuất Excel (.xls). Xem console để biết chi tiết.", "error")
+        : alert("Không thể xuất Excel (.xls).");
+    }
+  }
+
+
+
+  // === Loader html2canvas (load 1 lần) ===
+  let __h2cReady = null;
+  function ensureHtml2Canvas() {
+    if (window.html2canvas) return Promise.resolve(window.html2canvas);
+    if (__h2cReady) return __h2cReady;
+    __h2cReady = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+      s.async = true;
+      s.onload = () => resolve(window.html2canvas);
+      s.onerror = () => reject(new Error('Không tải được thư viện html2canvas.'));
+      document.head.appendChild(s);
+    });
+    return __h2cReady;
+  }
+
+  // === Gửi Email kèm hình ảnh tờ trình ===
+  async function modal_totrinh_3_sendEmail() {
+    try {
+      const html2canvas = await ensureHtml2Canvas();
+      const element = document.querySelector("#modal_totrinh_2_Modal .document-container");
+
+      if (!element) {
+        Swal.fire("Lỗi", "Không tìm thấy nội dung tờ trình để chụp ảnh.", "error");
+        return;
+      }
+
+      // Hiển thị loading
+      Swal.fire({
+        title: 'Đang xử lý...',
+        text: 'Đang chụp ảnh tờ trình và chuẩn bị nội dung mail',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+
+      // Chụp ảnh phần tờ trình
+      const canvas = await html2canvas(element, {
+        scale: 2, // Tăng chất lượng ảnh
+        useCORS: true,
+        backgroundColor: "#ffffff"
+      });
+
+      // Chuyển canvas thành Blob
+      canvas.toBlob(async (blob) => {
+        try {
+          // Copy vào clipboard
+          const item = new ClipboardItem({ "image/png": blob });
+          await navigator.clipboard.write([item]);
+
+          // Lấy thông tin cơ bản để soạn mail
+          const kyLuong = document.getElementById("kyLuong")?.innerText?.trim() || "";
+          const boPhan = document.getElementById("boPhan")?.innerText?.trim() || "";
+          const loaiToTrinh = document.getElementById("loaiToTrinh")?.innerText?.trim() || "HIỆU SUẤT";
+
+          const subject = encodeURIComponent(`[TỜ TRÌNH ${loaiToTrinh.toUpperCase()}] - ${boPhan.toUpperCase()} - KỲ LƯƠNG: ${kyLuong}`);
+          const body = encodeURIComponent("Kính gửi Ban Giám Đốc,\n\nTôi xin gửi tờ trình chi tiết bên dưới (vui lòng nhấn Ctrl+V để dán hình ảnh):\n\n---\n[Hình ảnh tờ trình đã được sao chép vào bộ nhớ tạm]");
+
+          // Đóng loading
+          Swal.close();
+
+          // Thông báo cho người dùng
+          const result = await Swal.fire({
+            title: 'Thành công!',
+            html: `Đã sao chép hình ảnh tờ trình vào bộ nhớ tạm.<br><br><b>Bước tiếp theo:</b> Hệ thống sẽ mở Gmail, bạn hãy nhấn <b>Ctrl + V</b> vào nội dung thư để gửi.`,
+            icon: 'success',
+            showCancelButton: true,
+            confirmButtonText: 'Mở Gmail ngay',
+            cancelButtonText: 'Để sau'
+          });
+
+          if (result.isConfirmed) {
+            // Mở gmail soạn thư (có thể thay đổi URL tùy nhà cung cấp mail, ở đây dùng Gmail mặc định)
+            const mailUrl = `https://mail.google.com/mail/?view=cm&fs=1&su=${subject}&body=${body}`;
+            window.open(mailUrl, '_blank');
+          }
+        } catch (err) {
+          Swal.fire("Lỗi", "Không thể sao chép hình ảnh vào Clipboard. Trình duyệt của bạn có thể không hỗ trợ hoặc cần chạy trên HTTPS.", "error");
+          console.error("Clipboard Error:", err);
+        }
+      }, "image/png");
+
+    } catch (err) {
+      Swal.fire("Lỗi", "Đã xảy ra lỗi trong quá trình xử lý: " + err.message, "error");
+      console.error(err);
+    }
+  }
+
+</script>

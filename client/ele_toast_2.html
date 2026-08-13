@@ -1,0 +1,81 @@
+<div id="toastContainer" class="toast-container position-fixed bottom-0 end-0 p-3"></div>
+
+<script>
+  function pg_general_3_showToast(message, type = "success") {
+    const duration = 5000; // Mặc định là 3 giây
+    const toastContainer = document.getElementById("toastContainer");
+
+    let bgColor = "text-bg-success"; // Mặc định xanh lá
+    if (type === "error") bgColor = "text-bg-danger"; // Đỏ cho lỗi
+    else if (type === "warning") bgColor = "text-bg-warning"; // Vàng cho cảnh báo
+
+    // Tạo phần tử Toast
+    const toastEl = document.createElement("div");
+    toastEl.className = `toast align-items-center ${bgColor} border-0 show`;
+    toastEl.setAttribute("role", "alert");
+    toastEl.setAttribute("aria-live", "assertive");
+    toastEl.setAttribute("aria-atomic", "true");
+
+    // Nội dung Toast
+    toastEl.innerHTML = `
+      <div class="d-flex">
+        <div class="toast-body">${message}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    `;
+
+    // Thêm toast vào container
+    toastContainer.appendChild(toastEl);
+
+    // Hiển thị Toast với độ mờ ban đầu
+    toastEl.style.opacity = "1";
+    toastEl.style.transition = "opacity 1s ease-in-out";
+
+    // Làm mờ Toast sau khi hiển thị
+    setTimeout(() => {
+      toastEl.style.opacity = "0";
+    }, duration);
+
+    // Xóa Toast khỏi DOM sau khi biến mất
+    setTimeout(() => {
+      toastEl.remove();
+    }, duration + 1000);
+  }
+
+  function ele_toast_2_showNotification() {
+      const notificationContent = `
+          <h3>CÁC BƯỚC TÍNH LƯƠNG 1</h3>
+          <p>Bước 1. Lấy danh sách nhân sự từ data chốt công, loại bảng lương là Lương 1.</p>
+          <p>Bước 2. Ghép với dữ liệu từ data chốt nhân sự trong tháng</p>
+          <p>Bước 3. Tính các hệ số và tiền các cột Tổng lương thưởng, các cột bảo hiểm, khoản trừ ...</p>
+          
+      `;
+      const notificationDiv = document.createElement("div");
+      notificationDiv.innerHTML = notificationContent;
+      notificationDiv.style.position = "fixed";
+      notificationDiv.style.top = "50%";
+      notificationDiv.style.left = "50%";
+      notificationDiv.style.transform = "translate(-50%, -50%)";
+      notificationDiv.style.backgroundColor = "#ffffff";
+      notificationDiv.style.padding = "20px";
+      notificationDiv.style.border = "1px solid #ccc";
+      notificationDiv.style.boxShadow = "0 0 15px rgba(0,0,0,0.2)";
+      notificationDiv.style.width = "800px";
+      notificationDiv.style.maxHeight = "90vh";
+      notificationDiv.style.overflowY = "auto";
+      notificationDiv.style.zIndex = "1000";
+      notificationDiv.id = "notificationPopup";
+
+      const closeButton = document.createElement("button");
+      closeButton.textContent = "Đóng";
+      closeButton.style.marginTop = "10px";
+      closeButton.style.display = "block";
+      closeButton.style.width = "100%";
+      closeButton.onclick = function () {
+          document.body.removeChild(notificationDiv);
+      };
+
+      notificationDiv.appendChild(closeButton);
+      document.body.appendChild(notificationDiv);
+  }
+</script>

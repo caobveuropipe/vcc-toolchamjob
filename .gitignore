@@ -1,0 +1,10 @@
+# Backups & Temp
+backup/
+.agent/tmp/
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# Dependencies
+node_modules/

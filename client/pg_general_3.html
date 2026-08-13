@@ -1,0 +1,1429 @@
+<script>
+
+  //PHẦN XỬ LÝ CACHED
+
+  let pg_general_3_cachedDSNS = null;
+  let pg_general_3_cachedMNS = null;
+  let pg_general_3_cachedKhung = null;
+  let pg_general_3_cachedKhung_edit = null;
+  let pg_general_3_cachedDataHieuSuat = null;
+  let pg_general_3_cachedDataLuong = null;
+  let pg_general_3_cachedLuongChiTiet = null;
+
+  function pg_general_3_loadDataNhanSu() {
+    try {
+      google.script.run
+        .withSuccessHandler(function (data) {
+          //console.log("Dữ liệu nhận được từ Apps Script:", data); // Debug dữ liệu
+
+          if (Array.isArray(data) && data.length > 0) {
+            pg_general_3_cachedDSNS = data;
+            //console.log("Danh sách nhân sự đã cache:", pg_general_3_cachedDSNS);
+          } else {
+            pg_general_3_cachedDSNS = [];
+            pg_general_3_showToast("Không có dữ liệu nhân sự!", "warning");
+          }
+        })
+        .withFailureHandler(function (error) {
+          console.error("Lỗi kết nối API:", error);
+          pg_general_3_showToast("Lỗi kết nối API: " + error.message, "error");
+          $('#spinnerModal').modal('hide');
+        })
+        .pg_general_1_layDanhSachMaNhanSu()//pg_general_1_DanhSachNhanSu();
+    } catch (error) {
+      console.error("Lỗi khi gọi Google Apps Script:", error);
+      pg_general_3_showToast("Lỗi khi gọi Google Apps Script!", "error");
+    }
+  }
+
+  function pg_general_3_loadDataMNS() {
+    try {
+      google.script.run
+        .withSuccessHandler(function (data) {
+          //console.log("Dữ liệu nhận được từ Apps Script:", data); // Kiểm tra dữ liệu
+          if (Array.isArray(data) && data.length > 0) {
+            pg_general_3_cachedMNS = data;
+            //console.log("Danh sách mã nhân sự: "+pg_general_3_cachedMNS)
+          } else {
+            pg_general_3_cachedMNS = [];
+
+            pg_general_3_showToast("Không có dữ liệu nhân sự!", "warning");
+          }
+
+          $('#spinnerModal').modal('hide');
+        })
+        .withFailureHandler(function (error) {
+          pg_general_3_showToast("Lỗi kết nối API: " + error.message, "error");
+          //console.error(error);
+          $('#spinnerModal').modal('hide');
+        })
+        .pg_general_1_layDanhSachMaNhanSu();
+    } catch (error) {
+      pg_general_3_showToast("Lỗi khi gọi Google Apps Script!", "error");
+      //console.error(error);
+    }
+  }
+
+  //CÁC DROPLIST THEO BOOSTRAP 5 và SELECT 2
+  $(document).ready(function () {
+    let selectIds = [
+      "#tuThang_DropList", "#denThang_DropList", "#coChe_DropList", "#khoi_DropList"
+    ];
+
+    selectIds.forEach(function (selector) {
+      let $el = $(selector);
+      let placeholderText = $el.attr("title");
+
+      $el.select2({
+        theme: "bootstrap-5",
+        selectionCssClass: "select2--small",
+        dropdownCssClass: "select2--small",
+        allowClear: true, // Cho phép nút xóa
+        placeholder: placeholderText,
+        width: 'style'
+      });
+
+      // Reset về trạng thái placeholder ngay sau khi khởi tạo
+      $el.val(null).trigger("change");
+    });
+  });
+  $(document).ready(function () {
+    let selectIds = [
+      "#filterKyChiTra", "#filterKyNghiemThu", "#filterMaNhanSu", "#filterHoTen",
+      "#filterCoChe", "#filterLoaiCoChe", "#filterPhanLoai", "#filterHangMuc",
+      "#filterDoKho", "#filterDuAn", "#filterWinFail", "#filterChatLuong",
+      "#filterkhoi", "#filterNB_Khach"
+    ];
+
+    selectIds.forEach(function (selector) {
+      let $el = $(selector);
+
+      // Kiểm tra nếu phần tử tồn tại
+      if ($el.length === 0) return;
+
+      let placeholderText = $el.attr("title") //|| "Chọn một giá trị";
+
+      $el.select2({
+        theme: "bootstrap-5",
+        selectionCssClass: "select2--small",
+        dropdownCssClass: "select2--small",
+        allowClear: true, // Cho phép nút xóa
+        placeholder: placeholderText,
+        width: '100%' // Chỉnh lại width để tránh lỗi hiển thị
+      });
+
+      // Chọn giá trị đầu tiên làm mặc định
+      let firstValue = $el.find("option:first").val();
+      if ($el.prop("multiple")) {
+        $el.val([firstValue]).trigger("change"); // Multiple select
+      } else {
+        $el.val(firstValue).trigger("change"); // Single select
+      }
+    });
+  });
+
+
+  //Phân quyền
+  google.script.run.withSuccessHandler(function (permissions) {
+    // Log toàn bộ object trả về
+    //console.log('permissions:', permissions);
+
+    // Log từng quyền riêng lẻ
+    //console.log('inputPermission:', permissions.inputPermission);
+    //console.log('taoDataFilePermission:', permissions.taoDataFilePermission);
+    //console.log('setupPermission:', permissions.setupPermission);
+
+    // Phân quyền nút thêm mới
+    var inputBtn = document.getElementById('pg_general_2_btn_InputHS');
+    //console.log('inputBtn element:', inputBtn);
+    if (permissions.inputPermission === 'On') {
+      //console.log('Hiển thị nút InputHS');
+      inputBtn.style.display = 'flex';
+      inputBtn.disabled = false;
+    } else {
+      //console.log('Ẩn nút InputHS');
+      inputBtn.style.display = 'none';
+      inputBtn.disabled = true;
+    }
+
+    // Phân quyền nút tạo file Data
+    var taoDataFileBtn = document.getElementById('pgHieuSuatUploadHtml_TaoDataFile');
+    //console.log('taoDataFileBtn element:', taoDataFileBtn);
+    if (permissions.taoDataFilePermission === 'Admin' || permissions.taoDataFilePermission === 'Super Editor') {
+      //console.log('Hiển thị nút Tạo Data File');
+      taoDataFileBtn.style.display = 'block';
+      taoDataFileBtn.disabled = false;
+    } else {
+      //console.log('Ẩn nút Tạo Data File');
+      taoDataFileBtn.style.display = 'none';
+      taoDataFileBtn.disabled = true;
+    }
+
+    // Phân quyền nút tạo file Khung
+    var taoKhungBtn = document.getElementById('addKhung');
+    //console.log('taoKhungBtn element:', taoKhungBtn);
+    if (permissions.taoDataFilePermission === 'Admin') {
+      //console.log('Hiển thị nút Tạo Khung');
+      taoKhungBtn.style.display = 'block';
+      taoKhungBtn.disabled = false;
+    } else {
+      //console.log('Ẩn nút Tạo Khung');
+      taoKhungBtn.style.display = 'none';
+      taoKhungBtn.disabled = true;
+    }
+
+    // Phân quyền nút Setup - FIX: Dùng setProperty với important
+    var setUpBtn = document.getElementById('pg_general_PhanQuyen');
+    //console.log('setUpBtn element:', setUpBtn);
+    if (permissions.setupPermission === 'Admin') {
+      //console.log('Hiển thị nút Setup');
+      setUpBtn.style.setProperty('display', 'flex', 'important');
+      setUpBtn.style.setProperty('visibility', 'visible', 'important');
+      setUpBtn.style.setProperty('opacity', '1', 'important');
+      setUpBtn.disabled = false;
+    } else {
+      //console.log('Ẩn nút Setup');
+      setUpBtn.style.setProperty('display', 'none', 'important');
+      setUpBtn.style.setProperty('visibility', 'hidden', 'important');
+      setUpBtn.style.setProperty('opacity', '0', 'important');
+      setUpBtn.disabled = true;
+    }
+
+    // Phân quyền nút Tờ trình - FIX: Dùng setProperty với important
+    var toTrinhBtn = document.getElementById('pg_general_ToTrinh');
+    //console.log('toTrinhBtn element:', toTrinhBtn);
+    if (permissions.setupPermission === 'Admin') {
+      //console.log('Hiển thị nút Tờ trình');
+      toTrinhBtn.style.setProperty('display', 'flex', 'important');
+      toTrinhBtn.style.setProperty('visibility', 'visible', 'important');
+      toTrinhBtn.style.setProperty('opacity', '1', 'important');
+      toTrinhBtn.disabled = false;
+    } else {
+      //console.log('Ẩn nút Tờ trình');
+      toTrinhBtn.style.setProperty('display', 'none', 'important');
+      toTrinhBtn.style.setProperty('visibility', 'hidden', 'important');
+      toTrinhBtn.style.setProperty('opacity', '0', 'important');
+      toTrinhBtn.disabled = true;
+    }
+
+  }).getUserPermissions();
+
+
+  /**
+    * Prevent forms from submitting.
+    * */
+
+  function preventFormSubmit() {
+    $('#spinnerModal').modal('show');
+    var forms = document.querySelectorAll('form');
+    for (var i = 0; i < forms.length; i++) {
+      forms[i].addEventListener('submit', function (event) {
+        event.preventDefault();
+      });
+    }
+  }
+
+  window.addEventListener("load", functionInit, true);
+
+
+  /**
+   * INITIALIZE FUNCTIONS ONLOAD
+   * */
+
+  function functionInit() {
+
+    document.getElementById("pg_general_2_status").value = "new";
+    //Các hàm khởi đầu
+    preventFormSubmit();
+
+    //Tạo droplist trên trang chủ
+    pg_general_3_taoDropDown_CoChe();
+    pg_general_3_taoDropDown_Khoi();
+    pg_general_3_taoDropDown_TuThang();
+    pg_general_3_taoDropDown_DenThang();
+
+    //Tạo droplist trên trang upload khung
+    modal_khung_3_taoDropDown_CoChe();
+
+    //Tạo droplist tổng hợp hiệu suất đổ về data
+    //console.log("Calling modal_tonghophieusuat_3_taoDropDown_ThangChiTra...");
+    modal_tonghophieusuat_3_taoDropDown_ThangChiTra();
+    // Không gọi modal_tonghophieusuat_3_taoDropDown_KyNghiemThu() ở đây vì chưa có giá trị Từ tháng/Đến tháng
+    // Hàm này sẽ được gọi khi modal mở hoặc khi bấm nút làm mới
+    //console.log("Calling modal_tonghophieusuat_3_taoDropDown_KyNghiemThu...");
+    //modal_tonghophieusuat_3_taoDropDown_KyNghiemThu();
+
+    //Tạo droplist upload hiệu suất
+    modal_UpDataChiTiet_3_taoDropDown_KyNghiemThu();
+    modal_UpDataChiTiet_3_taoDropDown_Khoi();
+    modal_UpDataChiTiet_3_taoDropDown_CoChe();
+
+
+    //Tạo droplist trên Form
+    modal_Form_3_createDropdown_TenCoChe()
+    modal_Form_3_createDropDown_KyNghiemThu();
+    modal_Form_3_createDropdown_Khoi();
+
+    //Modal tờ trình
+    modal_totrinh_3_taoDropDown_Kyluong();
+    modal_totrinh_3_taoDropDown_Kynt();
+
+    //Các hàm kèm sự kiện click
+    const xemBtn = document.getElementById("xemHieuSuat");
+    if (xemBtn) xemBtn.addEventListener("click", pg_general_3_XemHieuSuatChiTiet);
+
+    //document.getElementById("tongHopHieuSuat_ID").addEventListener("click",pg_general_3_GetDataTongHop);
+
+    //pg_general_3_LayDuLieuVaoBang();
+    pg_general_3_loadDataNhanSu();
+    pg_general_3_loadDataMNS();
+
+
+  };
+
+
+  //Đoạn code này dùng để ẩn cùng lúc nhiều cột. Dùng sự kiện addEventListener để ẩn các cột theo thứ tự được chọn trong tệp pg_general_2
+  document.addEventListener('DOMContentLoaded', function () {
+    // Lấy tất cả các mục trong dropdown menu
+    var dropdownItems = document.querySelectorAll('.dropdown-item');
+
+    // Lặp qua từng mục dropdown và thêm sự kiện click
+    dropdownItems.forEach(function (item) {
+      item.addEventListener('click', function () {
+        var dataColumn = this.getAttribute('data-column'); // Lấy giá trị cột từ thuộc tính data-column
+
+        if (dataColumn) {
+          var columnIndex = parseInt(dataColumn); // Chuyển đổi thành số nguyên
+          toggleColumn(columnIndex); // Gọi hàm ẩn/hiện cột
+        } else {
+          console.error('data-column attribute is missing or empty.');
+        }
+      });
+    });
+  });
+
+  /**
+   * Hàm ẩn/hiện một cột cụ thể trong bảng HTML
+   * @param {number} columnIndex - Số thứ tự của cột cần ẩn/hiện (bắt đầu từ 1)
+   */
+  function toggleColumn(columnIndex) {
+    var table = document.querySelector('table'); // Tìm bảng HTML
+    if (!table) {
+      console.error('Table not found!');
+      return;
+    }
+
+    // Lấy tất cả các hàng (rows) trong bảng
+    var rows = table.querySelectorAll('tr');
+
+    // Duyệt qua từng hàng và ẩn/hiện cột tương ứng
+    rows.forEach(function (row) {
+      var cells = row.children; // Lấy tất cả các ô (td/th) trong hàng
+      if (cells[columnIndex - 1]) { // Lưu ý: chỉ số mảng bắt đầu từ 0, nên trừ đi 1
+        var cell = cells[columnIndex - 1];
+        if (cell.style.display === 'none') {
+          cell.style.display = ''; // Hiện cột
+        } else {
+          cell.style.display = 'none'; // Ẩn cột
+        }
+      }
+    });
+  }
+
+  async function pg_general_3_XemHieuSuatChiTiet() {
+    $('#spinnerModal').modal('show');
+    // Đặt trạng thái về 'view'
+    document.getElementById("pg_general_2_status").value = "view";
+
+    try {
+      // Tải dữ liệu hiệu suất vào bảng
+      await pg_general_3_LayDuLieuVaoBang();
+      console.log("ℹ️ Net state changed from BUSY to IDLE");
+    } catch (error) {
+      console.error("Lỗi khi tải dữ liệu tổng thể:", error);
+    } finally {
+      $('#spinnerModal').modal('hide');
+    }
+  }
+
+
+  async function pg_general_1_LayDanhSachLuong(maNS_String, kyNghiemThu) {
+    if (!kyNghiemThu) {
+      console.warn("Chưa chọn kỳ nghiệm thu khi tải danh sách lương");
+      return Promise.resolve([]);
+    }
+
+    if (Array.isArray(pg_general_3_cachedLuongChiTiet) && pg_general_3_cachedLuongChiTiet.length > 0) {
+      pg_general_3_cachedLuongChiTiet = null;
+    }
+
+    return new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(function (data) {
+          pg_general_3_cachedLuongChiTiet = data;
+          resolve(data);
+        })
+        .withFailureHandler(function (error) {
+          console.error("Lỗi khi gọi Apps Script (Lương):", error);
+          if (typeof pg_general_3_showToast === 'function') {
+            pg_general_3_showToast("Lỗi tải dữ liệu lương: " + (error.message || error), "error");
+          }
+          reject(error);
+        })
+        .pg_general_1_LayDataLuong(maNS_String, kyNghiemThu);
+    });
+  }
+
+
+
+  function pg_general_3_LayDuLieuVaoBang() {
+    console.time("Execution Time");
+    var errorElement = document.getElementById("errorMessage");
+    var status = document.getElementById("pg_general_2_status").value;
+
+    if (status === "new") {
+      if (errorElement) {
+        errorElement.innerHTML = "Tool hiệu suất đã sẵn sàng!";
+      }
+      console.timeEnd("Execution Time");
+      return Promise.resolve();
+    }
+
+    if ($.fn.DataTable.isDataTable('#dataTableHieuSuat')) {
+      $('#dataTableHieuSuat').DataTable().destroy();
+      $('#dataTableHieuSuat').empty();
+    }
+
+    var khoiSelect = document.getElementById('khoi_DropList').value;
+    var dropTuThang = document.getElementById('tuThang_DropList').value;
+    var dropDenThang = document.getElementById('denThang_DropList').value;
+    var thangSelect = getMonthsInRange(dropTuThang, dropDenThang);
+    var coCheSelect = document.getElementById('coChe_DropList').value;
+
+    return Promise.all([
+      modal_khung_3_loadKhungCoChe(coCheSelect),
+      new Promise((resolve, reject) => {
+        google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .pg_general_1_LayHieuSuatChiTiet(khoiSelect, coCheSelect, thangSelect);
+      })
+    ]).then(([_, response]) => {
+      if (!response || response.length === 0) {
+        if (status !== "new" && errorElement) {
+          errorElement.innerHTML = "Không tìm thấy kết quả với các điều kiện bạn đang lọc!";
+        }
+        console.timeEnd("Execution Time");
+        return response;
+      }
+
+      pg_general_3_cachedDataHieuSuat = response;
+      pg_general_3_createTable(response);
+      console.timeEnd("Execution Time");
+      return response;
+    }).catch(error => {
+      console.error("Lỗi khi tải dữ liệu hiệu suất:", error);
+      if (errorElement) {
+        errorElement.innerHTML = "Đã xảy ra lỗi khi lấy dữ liệu!";
+      }
+      pg_general_3_showToast("Đã xảy ra lỗi khi lấy dữ liệu.", "error");
+      console.timeEnd("Execution Time");
+      throw error;
+    });
+  }
+
+  //Xử lý các tháng được chọn trong khoảng từ tháng đến tháng (hỗ trợ cả Quý)
+  function getMonthsInRange(tuthang, denthang) {
+    // Nếu một trong hai biến là rỗng hoặc undefined, trả về giá trị của biến còn lại
+    if (!tuthang) return denthang || "";
+    if (!denthang) return tuthang || "";
+
+    // Hàm chuyển đổi Quý sang tháng
+    function expandQuarter(period) {
+      if (!period) return period;
+
+      // Kiểm tra nếu là Quý (Q1.2024, Q2.2024...)
+      if (period.startsWith('Q')) {
+        var parts = period.split('.');
+        var quarter = parseInt(parts[0].substring(1)); // Lấy số quý
+        var year = parseInt(parts[1]);
+
+        // Chuyển quý thành tháng đầu và tháng cuối
+        var startMonth, endMonth;
+        switch (quarter) {
+          case 1: startMonth = 1; endMonth = 3; break;
+          case 2: startMonth = 4; endMonth = 6; break;
+          case 3: startMonth = 7; endMonth = 9; break;
+          case 4: startMonth = 10; endMonth = 12; break;
+          default: return period;
+        }
+
+        return {
+          start: `T${startMonth}.${year}`,
+          end: `T${endMonth}.${year}`,
+          isQuarter: true,
+          quarter: quarter,
+          year: year
+        };
+      }
+
+      // Nếu là tháng, trả về nguyên bản
+      return {
+        start: period,
+        end: period,
+        isQuarter: false
+      };
+    }
+
+    // Mở rộng quý thành tháng
+    var tuThangExpanded = expandQuarter(tuthang);
+    var denThangExpanded = expandQuarter(denthang);
+
+    // Lấy tháng bắt đầu và kết thúc
+    var startPeriod = tuThangExpanded.start;
+    var endPeriod = denThangExpanded.end;
+
+    var startParts = startPeriod.split('.');
+    var endParts = endPeriod.split('.');
+
+    var startMonth = parseInt(startParts[0].substring(1));
+    var startYear = parseInt(startParts[1]);
+
+    var endMonth = parseInt(endParts[0].substring(1));
+    var endYear = parseInt(endParts[1]);
+
+    var result = [];
+
+    // 1. Thêm tất cả các THÁNG trong khoảng
+    for (var year = startYear; year <= endYear; year++) {
+      var monthStart = (year === startYear) ? startMonth : 1;
+      var monthEnd = (year === endYear) ? endMonth : 12;
+
+      for (var month = monthStart; month <= monthEnd; month++) {
+        result.push(`T${month}.${year}`);
+      }
+    }
+
+    // 2. Nếu cả 2 đều là Quý, thêm tất cả các QUÝ trong khoảng
+    if (tuThangExpanded.isQuarter && denThangExpanded.isQuarter) {
+      var startQ = tuThangExpanded.quarter;
+      var startQYear = tuThangExpanded.year;
+      var endQ = denThangExpanded.quarter;
+      var endQYear = denThangExpanded.year;
+
+      for (var year = startQYear; year <= endQYear; year++) {
+        var qStart = (year === startQYear) ? startQ : 1;
+        var qEnd = (year === endQYear) ? endQ : 4;
+
+        for (var q = qStart; q <= qEnd; q++) {
+          result.push(`Q${q}.${year}`);
+        }
+      }
+    }
+    // 3. Nếu chỉ "Từ" là Quý, thêm quý đó
+    else if (tuThangExpanded.isQuarter) {
+      result.push(`Q${tuThangExpanded.quarter}.${tuThangExpanded.year}`);
+    }
+    // 4. Nếu chỉ "Đến" là Quý, thêm quý đó
+    else if (denThangExpanded.isQuarter) {
+      result.push(`Q${denThangExpanded.quarter}.${denThangExpanded.year}`);
+    }
+
+    return result.join(';');
+  }
+
+
+  //Đoạn code này dùng để tạo các dropdown để chọn
+  function populateDropdown(dropdownId, values) {
+    // Kiểm tra nếu phần tử dropdown tồn tại
+    var $dropdown = $("#" + dropdownId);
+    if ($dropdown.length === 0) {
+      console.error("Dropdown với ID '" + dropdownId + "' không tồn tại.");
+      return;
+    }
+
+    // Kiểm tra nếu values là mảng
+    if (!Array.isArray(values)) {
+      console.error("Giá trị truyền vào không phải là mảng:", values);
+      return;
+    }
+
+    // Xóa tất cả tùy chọn cũ
+    $dropdown.empty();
+
+    // Thêm placeholder trước khi thêm các tùy chọn mới
+    let placeholderText = $dropdown.attr("title") || "Chọn một giá trị";
+    $dropdown.append(new Option(placeholderText, "", false, false));
+
+    // Thêm các tùy chọn mới nếu có giá trị
+    if (values.length > 0) {
+      values.forEach(function (value) {
+        $dropdown.append(new Option(value, value));
+      });
+    }
+
+    // Cập nhật select2 sau khi thay đổi danh sách
+    if ($dropdown.hasClass("select2-hidden-accessible")) {
+      $dropdown.val(null).trigger("change");
+    } else {
+      console.warn("Dropdown không được khởi tạo với Select2.");
+    }
+  }
+
+
+  //Tạo drop tháng (bao gồm cả Quý)
+  function pg_general_3_taoDropDown_TuThang() {
+    // Gọi hàm Apps Script để lấy danh sách dropdown (Tháng + Quý)
+    google.script.run.withSuccessHandler(dropDown_TuThang).pg_general_1_layDsKyNghiemThuDayDu();
+  }
+  function dropDown_TuThang(values) {
+    populateDropdown("tuThang_DropList", values);
+  }
+  function pg_general_3_taoDropDown_DenThang() {
+    // Gọi hàm Apps Script để lấy danh sách dropdown (Tháng + Quý)
+    google.script.run.withSuccessHandler(dropDown_DenThang).pg_general_1_layDsKyNghiemThuDayDu();
+  }
+  function dropDown_DenThang(values) {
+    populateDropdown("denThang_DropList", values);
+  }
+
+  //Drop khối
+  function pg_general_3_taoDropDown_Khoi() {
+    // Gọi hàm Apps Script để lấy danh sách dropdown
+    google.script.run.withSuccessHandler(dropDown_Khoi).getDropdownList("Master!D2:D");
+  }
+  function dropDown_Khoi(values) {
+    populateDropdown("khoi_DropList", values);
+  }
+
+  //Drop tên cơ chế/Khung cơ chế
+  function pg_general_3_taoDropDown_CoChe() {
+    // Gọi hàm Apps Script để lấy danh sách dropdown
+    google.script.run.withSuccessHandler(dropDown_CoChe).getDropdownList("HieuSuat!A2:A");
+  }
+  function dropDown_CoChe(values) {
+    populateDropdown("coChe_DropList", values);
+  }
+
+  //Đoạn code này để xóa state của DataTable khi load lại trang
+  function pg_general_3_falseState() {
+    try {
+      var dtTable = $('#dataTableHieuSuat').DataTable();
+      if (dtTable) {
+        dtTable.state.clear(); //Clear State only, don't destroy DOM elements in case user cancels navigation
+      }
+    } catch (e) {
+      console.warn("pg_general_3_falseState error:", e);
+    }
+  }
+
+  // Hàm kiểm tra xem có thay đổi nào chưa được lưu không
+  function pg_general_3_hasUnsavedChanges() {
+    // 1. Kiểm tra modal upload nhiều file (Upload Multiple)
+    if (typeof uploadMultiple_filesData !== 'undefined' && Array.isArray(uploadMultiple_filesData) && uploadMultiple_filesData.length > 0) {
+      console.log("⚠️ Có file trong danh sách Upload Multiple chưa lưu.");
+      return true;
+    }
+
+    // 2. Kiểm tra modal upload đơn (UpDataChiTiet)
+    const singleUploadStatus = document.getElementById('modal_UpDataChiTiet_2_status');
+    if (singleUploadStatus && singleUploadStatus.value === 'non-save') {
+      console.log("⚠️ Có dữ liệu Upload Chi Tiết chưa lưu.");
+      return true;
+    }
+
+    // 3. Kiểm tra modal Tổng hợp hiệu suất (Tính chưa Ghi)
+    if (typeof modal_tonghophieusuat_hasUnsavedChanges === 'function' && modal_tonghophieusuat_hasUnsavedChanges()) {
+      console.log("⚠️ Có dữ liệu Tổng hợp hiệu suất chưa lưu.");
+      return true;
+    }
+
+    // 4. Kiểm tra modal Khung cơ chế
+    if (typeof modal_khung_hasUnsavedChanges === 'function' && modal_khung_hasUnsavedChanges()) {
+      console.log("⚠️ Có dữ liệu Khung cơ chế chưa lưu.");
+      return true;
+    }
+
+    // 5. Kiểm tra modal Form cập nhật
+    if (typeof modal_Form_3_hasUnsavedChanges === 'function' && modal_Form_3_hasUnsavedChanges()) {
+      console.log("⚠️ Có dữ liệu Form cập nhật chưa lưu.");
+      return true;
+    }
+
+    return false;
+  }
+
+  // Flag: chỉ kích hoạt cảnh báo sau khi trang đã load xong hoàn toàn
+  // (tránh GAS iframe trigger beforeunload trong quá trình khởi động)
+  var _pg3_pageReady = false;
+  window.addEventListener('load', function () {
+    // Chờ 3 giây sau khi load xong mới bật cảnh báo
+    setTimeout(function () { _pg3_pageReady = true; }, 3000);
+  });
+
+  // Thêm sự kiện cảnh báo khi đóng tab/trình duyệt
+  window.addEventListener('beforeunload', function (e) {
+    // Bỏ qua nếu trang chưa ready (đang trong quá trình khởi động GAS)
+    if (!_pg3_pageReady) return;
+
+    if (pg_general_3_hasUnsavedChanges()) {
+      // Hiển thị cảnh báo chuẩn của trình duyệt
+      e.preventDefault();
+      e.returnValue = ''; // Yêu cầu bởi Chrome/Edge
+      return '';          // Yêu cầu bởi một số trình duyệt khác
+    } else {
+      // Nếu không có dữ liệu chưa lưu, chạy hàm dọn dẹp state
+      pg_general_3_falseState();
+    }
+  });
+
+
+  /** 
+   * EDIT DATA
+   * https://stackoverflow.com/a/32377357/2391195
+   * */
+  //Đoạn code này dùng để lấy dữ liệu từ data đưa vào Form khi bấm nút sửa
+  function pg_general_3_edit(idRecRowSel) {
+
+    // Lấy bảng DataTable (giả sử bạn vẫn dùng DataTables với jQuery)
+    var oTable = $('#dataTableHieuSuat').DataTable();
+
+    // Tìm hàng tương ứng với idRecRowSel
+    var row = oTable.row(function (idx, data, node) {
+      return data[0] == idRecRowSel; // Giả sử 'ID' nằm ở cột thứ 1 (data[0])
+    });
+
+    // Lấy dữ liệu của hàng đó
+    var rowData = row.data();
+
+
+    // Điền dữ liệu vào form
+    modal_Form_3_editRow(rowData);
+
+  }
+
+
+
+  /**
+   * DELETE DATA
+   * */
+  //Đoạn code này dùng để xóa bản ghi trong data
+  function pg_general_3_XoaDong(recordId, kyLuong, coCheSelect) {
+    var oTable = $('#dataTableHieuSuat').dataTable();
+    // Hide the second column after initialisation
+    // oTable.fnSetColumnVis(0, true);
+    $('#spinnerModal').modal('show');
+    Swal.fire({
+      title: 'Bạn có chắc không?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      cancelButtonText: 'Huỷ',
+      confirmButtonText: 'Có, Xóa dòng này!',
+      allowOutsideClick: false,
+    }).then((result) => {
+      if (result.isConfirmed) {
+        //console.log(recordId);
+        google.script.run.withSuccessHandler(() => {
+          Swal.fire(
+            'Delete!',
+            'Dòng dữ liệu đã bị xóa!',
+            'success'
+          ).then(() => {
+            pg_general_3_LayDuLieuVaoBang();
+            $('#spinnerModal').modal('hide');
+          });
+
+        }).pg_general_1_XoaDong(recordId, kyLuong, coCheSelect);
+      } else {
+        Swal.fire(
+          'Đã huỷ!',
+          'Hủy xóa file này :)',
+          'error'
+        );
+        $('#spinnerModal').modal('hide');
+      }
+      // oTable.fnSetColumnVis(0, false);
+    });
+  }
+
+
+  /**
+  * CREATE THE DATA TABLE
+  * */
+  /**
+   * Tạo/khởi tạo DataTable với 2 cột hành động (Sửa/Xóa) ở ĐẦU bảng.
+   * @param {Array[]} dataArray - Dòng đầu là headers, các dòng sau là dữ liệu.
+   */
+
+
+  function pg_general_3_createTable(dataArray) {
+    if (!dataArray || !Array.isArray(dataArray) || dataArray.length === 0) {
+      console.error("Dữ liệu không hợp lệ!");
+      return;
+    }
+
+    const headers = dataArray[0];
+    const tableData = dataArray.slice(1);
+    const totalColumns = headers.length + 2; // +2 cột Sửa/Xóa
+    const clampIndex = (i) => Math.max(0, Math.min(i, totalColumns - 1));
+    const esc = (s) => String(s ?? "")
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+    // ======== Sinh HTML bảng ========
+    let tableHtml = `<div>
+  <table class='table table-striped table-bordered' style='font-size:0.9em; width:100%' id='dataTableHieuSuat'>
+    <thead><tr>
+      <th scope='col' style='text-align:center;vertical-align:middle;width:50px;background-color:#ffffff;'>Sửa</th>
+      <th scope='col' style='text-align:center;vertical-align:middle;width:50px;background-color:#ffffff;'>Xóa</th>`;
+
+    // Danh sách các cột cần vừa nội dung, header xuống dòng (wrap text)
+    const fitContentCols = [
+      'KỲ NGHIỆM THU', 'KHỐI', 'MÃ NHÂN SỰ', 'HỌ VÀ TÊN', 'LOẠI CƠ CHẾ', 
+      'ĐỘ KHÓ', 'SỐ LƯỢNG', 'KHỐI LƯỢNG CV', 'CHẤT LƯỢNG', 'TỶ LỆ HƯỞNG', 
+      'HIỆU SUẤT', 'TỶ LỆ THAM GIA'
+    ];
+    const normFitCols = fitContentCols.map(s => s.toUpperCase());
+
+    headers.forEach((header, colIndex) => {
+      const headerUpper = String(header).trim().toUpperCase();
+      const isEditableColumn = false; // Tạm thời bỏ highlight/edit các cột
+      const isExpandColumn = headerUpper.startsWith("MỞ RỘNG");
+      const isFitCol = normFitCols.includes(headerUpper);
+
+      let headerStyle = 'text-align:center;vertical-align:middle;background-color:#ffffff;';
+      if (isFitCol) {
+        headerStyle += ' white-space:normal; word-break:normal; word-wrap:break-word; min-width:85px; max-width:130px;';
+      } else {
+        headerStyle += ' white-space:nowrap;';
+      }
+
+      if (isEditableColumn) {
+        headerStyle += ' background-color:#e6f7ff !important;color:#1890ff;font-weight:bold;';
+      } else if (isExpandColumn) {
+        headerStyle += ' background-color:#fff3cd !important;color:#856404;font-weight:bold;';
+      }
+
+      tableHtml += `<th scope='col' style='${headerStyle}'>${esc(header)}</th>`;
+    });
+
+    tableHtml += `</tr></thead><tbody>`;
+
+    // ======== Sinh các dòng dữ liệu ========
+    tableData.forEach((row) => {
+      const permission = row[26] || "";
+      const isEditPermission = permission === "EDIT";
+      const isAllPermission = permission === "ALL";
+
+      const editDisabled = !(isEditPermission || isAllPermission) ? "disabled" : "";
+      const deleteDisabled = !isAllPermission ? "disabled" : "";
+
+      const editStyle = editDisabled ? "color:#adb5bd;cursor:not-allowed;" : "color:#1890ff;cursor:pointer;";
+      const deleteStyle = deleteDisabled ? "color:#adb5bd;cursor:not-allowed;" : "color:#ff4d4f;cursor:pointer;";
+
+      tableHtml += `<tr>`;
+      // Nút Sửa
+      tableHtml += `<td style="text-align:center;width:50px;">
+      <button type="button" class="btn btn-light btn-sm action-btn" data-action="edit" ${editDisabled} title="Sửa"
+              style="font-size:15px;${editStyle}">
+        <i class="fa fa-edit"></i>
+      </button>
+    </td>`;
+      // Nút Xóa
+      tableHtml += `<td style="text-align:center;width:50px;">
+      <button type="button" class="btn btn-light btn-sm action-btn" data-action="delete" ${deleteDisabled} title="Xóa"
+              style="font-size:15px;${deleteStyle}">
+        <i class="fa fa-trash"></i>
+      </button>
+    </td>`;
+
+      // Cells dữ liệu
+      headers.forEach((header, colIndex) => {
+        const cellData = row[colIndex] ?? "";
+        const headerUpper = String(header).trim().toUpperCase();
+        const isEditableColumn = false;
+        const isExpandColumn = headerUpper.startsWith("MỞ RỘNG");
+        const isFitCol = normFitCols.includes(headerUpper);
+
+        const editableAttr = isEditableColumn ? `contenteditable="true" class="editable-cell"` : "";
+
+        let cellStyle = isFitCol ? "white-space:nowrap; text-align:center; min-width:85px;" : "min-width:150px;";
+        if (isExpandColumn) {
+          cellStyle += " background-color:#fffbf0;";
+        }
+
+        tableHtml += `<td style="${cellStyle}" ${editableAttr}>${esc(cellData)}</td>`;
+      });
+
+      tableHtml += `</tr>`;
+    });
+
+    tableHtml += `</tbody></table></div>`;
+    $('#dataTableHieuSuat_div').html(tableHtml);
+
+    // ======== Hành động Sửa / Xóa ========
+    const $tableRoot = $('#dataTableHieuSuat_div');
+    $tableRoot.off('click.actionBtn').on('click.actionBtn', '.action-btn', function () {
+      if (this.disabled) return;
+      const action = this.getAttribute('data-action');
+      if (action === 'edit') window.modal_datachotcong_3_editRow(this);
+      if (action === 'delete') window.modal_datachotcong_3_delRow(this);
+    });
+
+    window.modal_datachotcong_3_editRow = function (element) {
+      //console.log("Edit row clicked");
+      const row = $(element).closest('tr');
+      // TODO: logic sửa cụ thể
+    };
+
+    window.modal_datachotcong_3_delRow = function (element) {
+      const table = $('#dataTableHieuSuat').DataTable();
+      const row = $(element).closest('tr');
+
+      Swal.fire({
+        title: 'Xác nhận xóa?',
+        text: "Bạn không thể hoàn tác thao tác này!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Xóa',
+        cancelButtonText: 'Hủy'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          table.row(row).remove().draw();
+          const el = document.getElementById('modal_datachotcong_2_trangthaiaction');
+          if (el) el.value = "Đang sửa";
+          Swal.fire('Đã xóa!', 'Dòng đã được xóa khỏi bảng.', 'success');
+        }
+      });
+    };
+
+    // ======== Order mặc định ========
+    const safeOrder = [[11, 'asc'], [5, 'asc'], [3, 'asc']]
+      .filter(o => Array.isArray(o) && o.length >= 2)
+      .map(([i, dir]) => [clampIndex(i), (dir === 'desc' ? 'desc' : 'asc')]);
+
+    // ======== DataTable init ========
+    const dt = $('#dataTableHieuSuat').DataTable({
+      destroy: true,
+      responsive: false,
+      scrollY: 'calc(100vh - 240px)',
+      scrollX: true,
+      scrollCollapse: true,
+      stateSave: true,
+      select: true,
+      ordering: true,
+      order: safeOrder,
+      pageLength: 10,
+      lengthMenu: [[10, 25, 50, 100, -1], ['10', '25', '50', '100', 'Tất cả']],
+      columnDefs: [
+        {
+          targets: [2, 10, 27],
+          visible: false
+        }
+      ],
+      dom: "<'row'<'col-6'l><'col-6'f>>" +
+        "<'row'<'col-sm-12'tr>>" +
+        "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
+      language: {
+        lengthMenu: "_MENU_ ",
+        zeroRecords: "Không tìm thấy",
+        info: "Hiển thị _START_ đến _END_ trong _TOTAL_ dòng",
+        infoEmpty: "Không có dữ liệu",
+        infoFiltered: "(lọc từ _MAX_ dòng)",
+        search: '<i class="fas fa-search"></i>:',
+        paginate: {
+          first: "Đầu",
+          previous: '<i class="fas fa-chevron-left"></i>',
+          next: '<i class="fas fa-chevron-right"></i>',
+          last: "Cuối"
+        }
+      },
+      footerCallback: function () {
+        const api = this.api();
+
+        // 1) Lấy danh sách tiêu đề cột
+        const headersText = $(api.columns().header()).map((i, th) => $(th).text().trim()).get();
+
+        // 2) Chuẩn hóa để so sánh không dấu
+        const normalize = (s) => String(s || '')
+          .toLowerCase()
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const headersNorm = headersText.map(normalize);
+
+        // 3) Helper tìm index theo alias tên cột
+        const idxBy = (aliases) => {
+          for (const name of aliases) {
+            const i = headersNorm.indexOf(normalize(name));
+            if (i !== -1) return i;
+          }
+          return -1;
+        };
+
+        // 4) Tìm các index cột cần dùng dựa trên tên header
+        const idxHieuSuat = idxBy(['Hiệu suất', 'Hieu suat']);
+        const idxWinFail = idxBy(['Win/Fail', 'Win-fail', 'WinFail']);
+        const idxHoTen = idxBy(['Họ tên', 'Ho ten', 'Tên nhân sự', 'Ten nhan su', 'Họ và tên']);
+        const idxDoKho = idxBy(['Độ khó', 'Do kho']);
+        const idxChatLuong = idxBy(['Chất lượng', 'Chat luong']);
+
+        if (idxHieuSuat < 0) return; // Không có cột số liệu -> không tính
+
+        // 5) Helper đọc dữ liệu cột theo trang hiện tại
+        const toArray = (i) => (i < 0 ? [] : api.column(i, { page: 'current' }).data().toArray());
+
+        // 6) Tính tổng theo nhóm
+        const calculateTotalByGroup = function (groupData, valueColumnIndex) {
+          const groupTotals = {};
+          const values = api.column(valueColumnIndex, { page: 'current' }).data().toArray();
+          groupData.forEach((group, localRowIdx) => {
+            const amount = Number((String(values[localRowIdx] || '')).replace(/[\$,]/g, '')) || 0;
+            const key = String(group || '');
+            groupTotals[key] = (groupTotals[key] || 0) + amount;
+          });
+          return groupTotals;
+        };
+
+        // 7) Render HTML kết quả
+        const generateCardHtml = (groupTotals) => {
+          let html = `<ul>`;
+          Object.keys(groupTotals).forEach(group => {
+            const formattedValue = groupTotals[group].toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            html += `<li>${esc(group)}: ${formattedValue}</li>`;
+          });
+          html += `</ul>`;
+          return html;
+        };
+
+        const render = (sel, totals) => { if ($(sel).length) $(sel).html(generateCardHtml(totals)); };
+
+        // 8) Tính và hiển thị theo từng nhóm (nếu tìm thấy cột nhóm)
+        const winFailData = toArray(idxWinFail);
+        if (winFailData.length) render('#winFail_Card', calculateTotalByGroup(winFailData, idxHieuSuat));
+
+        const hoTenData = toArray(idxHoTen);
+        if (hoTenData.length) render('#hoTen_Card', calculateTotalByGroup(hoTenData, idxHieuSuat));
+
+        const doKhoData = toArray(idxDoKho);
+        if (doKhoData.length) render('#doKho_Card', calculateTotalByGroup(doKhoData, idxHieuSuat));
+
+        const chatLuongData = toArray(idxChatLuong);
+        if (chatLuongData.length) render('#chatLuong_Card', calculateTotalByGroup(chatLuongData, idxHieuSuat));
+      },
+
+
+      // ======== INIT COMPLETE ========
+      initComplete: function () {
+        const table = $('#dataTableHieuSuat').DataTable();
+
+        // Lấy header thực tế (bao gồm 2 cột Sửa/Xóa)
+        const headerTexts = $(table.columns().header()).map((i, th) => $(th).text().trim()).get();
+
+        // 🆕 Đảm bảo ẩn các cột ID, ID JOB, PHÂN QUYỀN theo đúng tiêu đề cột
+        headerTexts.forEach((text, index) => {
+          const normText = text.toUpperCase();
+          if (['ID', 'ID JOB', 'PHÂN QUYỀN'].includes(normText)) {
+            table.column(index).visible(false);
+          }
+        });
+
+        // Tìm index cột theo alias
+        const idxBy = (aliases) => {
+          const lower = headerTexts.map(h => h.toLowerCase());
+          for (const name of aliases) {
+            const i = lower.indexOf(String(name).toLowerCase());
+            if (i !== -1) return i;
+          }
+          return -1;
+        };
+
+        // Map select → alias tên cột
+        const selectToHeaders = {
+          '#filterKyNghiemThu': ['Kỳ nghiệm thu', 'Ky nghiệm thu', 'Kỳ NT'],
+          '#filterkhoi': ['Khối', 'Khoi'],
+          '#filterHoTen': ['Họ tên', 'Tên nhân sự', 'Ho ten', 'Ten nhan su', 'Họ và tên'],
+          '#filterLoaiCoChe': ['Loại cơ chế', 'Loai co che'],
+          '#filterCoChe': ['Tên cơ chế', 'Cơ chế', 'Ten co che', 'Co che'],
+          '#filterDoKho': ['Độ khó', 'Do kho'],
+          '#filterChatLuong': ['Chất lượng', 'Chat luong'],
+          '#filterDuAn': ['Dự án', 'Du an', 'Project'],
+          '#filterWinFail': ['Win/Fail', 'Win-fail', 'WinFail'],
+          '#filterNB_Khach': ['Nội bộ - Khách', 'Noi bo - Khach', 'NB/Khach']
+        };
+
+        Object.entries(selectToHeaders).forEach(([sel, aliases]) => {
+          const colIdx = idxBy(aliases);
+          if (colIdx < 0 || colIdx >= totalColumns) return;
+          const column = table.column(colIdx);
+          const $sel = $(sel);
+          if (!$sel.length) return;
+
+          $sel.off('change.dataTables').empty().append(`<option value="">Tất cả</option>`);
+          const exist = {};
+          column.data().unique().sort().each(function (d) {
+            const v = String(d ?? '');
+            if (!exist[v]) {
+              $sel.append(`<option value="${esc(v)}">${esc(v)}</option>`);
+              exist[v] = true;
+            }
+          });
+
+          $sel.on('change.dataTables', function () {
+            column.search(this.value).draw();
+          });
+        });
+
+        // Export buttons (Excel + CSV, xử lý UTF-8 & decode entity)
+        // ===== Export Buttons (gắn & trigger chắc chắn) =====
+        const buttonsInst = new $.fn.dataTable.Buttons(table, {
+          buttons: [
+            {
+              extend: 'excelHtml5',
+              title: 'BÁO CÁO CHI TIẾT THU NHẬP',
+              filename: 'BÁO CÁO CHI TIẾT THU NHẬP',
+              exportOptions: {
+                orthogonal: 'export',
+                columns: [...Array(table.columns().count()).keys()],
+                format: { body: (data) => $('<div>').html(data).text() }
+              }
+            },
+            {
+              extend: 'csvHtml5',
+              title: 'BÁO CÁO CHI TIẾT THU NHẬP',
+              filename: 'BÁO CÁO CHI TIẾT THU NHẬP',
+              bom: true,
+              charset: 'utf-8',
+              exportOptions: {
+                orthogonal: 'export',
+                columns: [...Array(table.columns().count()).keys()],
+                format: { body: (data) => $('<div>').html(data).text() }
+              }
+            }
+          ]
+        });
+
+        if (!$('#dt-buttons-holder').length) {
+          $('#dataTableHieuSuat_div').append('<div id="dt-buttons-holder" style="display:none"></div>');
+        }
+        $(buttonsInst.container()).appendTo('#dt-buttons-holder');
+
+        $('#menu')
+          .off('click.export', '#excelfull')
+          .on('click.export', '#excelfull', function () {
+            if (!window.JSZip) {
+              console.warn('Thiếu JSZip cho excelHtml5');
+              if (window.Swal) Swal.fire('Thiếu JSZip', 'Export Excel cần JSZip (jszip.min.js).', 'warning');
+              return;
+            }
+            const btn = table.button('.buttons-excel');
+            if (btn && btn.length) {
+              btn.trigger();
+              const node = btn.node && btn.node();
+              if (node && node.click) node.click();
+            }
+          });
+
+        $('#menu')
+          .off('click.export', '#csv')
+          .on('click.export', '#csv', function () {
+            const btn = table.button('.buttons-csv');
+            if (btn && btn.length) {
+              btn.trigger();
+              const node = btn.node && btn.node();
+              if (node && node.click) node.click();
+            }
+          });
+
+        // Reset filter
+        /*$('#resetAll').off('click').on('click', function () {
+          Object.keys(selectToHeaders).forEach(sel => { $(sel).val(''); });
+          table.columns().search('').draw();
+        });*/
+      }
+    });
+
+    // Khi chỉnh sửa nội dung cell
+    $('#dataTableHieuSuat')
+      .on('change', '.phan-loai-select', function () { dt.draw(); })
+      .on('blur', 'td[contenteditable="true"]', function () { dt.draw(); });
+
+    $('#modal_datachotcong_2_trangthaiaction').text('');
+  }
+
+
+
+  /*function pg_general_3_createTable(dataArray) {
+      if (!dataArray || !Array.isArray(dataArray) || dataArray.length === 0) {
+          console.error("Dữ liệu không hợp lệ!");
+          return;
+      }
+  
+      var headers = dataArray[0];
+      var tableData = dataArray.slice(1);
+  
+      var tableHtml = `<div>
+          <table class='table table-striped table-bordered table-hover table-sm align-middle' 
+                 style='font-size:0.9em; width:100%' id='dataTableHieuSuat'>
+              <thead><tr>
+                  <th scope='col' class='text-center' style='width:50px;'>Sửa</th>
+                  <th scope='col' class='text-center' style='width:50px;'>Xóa</th>`;
+  
+      headers.forEach((header, colIndex) => {
+          const isEditableColumn = [4, 7, 8].includes(colIndex);
+          let headerStyle = 'text-align:center; vertical-align:middle;';
+          if (isEditableColumn) {
+              headerStyle += ' background-color:#e6f7ff; color:#1890ff; font-weight:bold;';
+          }
+          tableHtml += `<th scope='col' style='${headerStyle}'>${header}</th>`;
+      });
+  
+      tableHtml += `</tr></thead><tbody>`;
+  
+      tableData.forEach((row) => {
+          const permission = row[27] || "";
+          const isEditPermission = permission === "EDIT";
+          const isAllPermission = permission === "ALL";
+  
+          const editDisabled = !(isEditPermission || isAllPermission) ? "disabled" : "";
+          const deleteDisabled = !isAllPermission ? "disabled" : "";
+  
+          const editStyle = editDisabled ? "color:#adb5bd; cursor:not-allowed;" : "color:#1890ff; cursor:pointer;";
+          const deleteStyle = deleteDisabled ? "color:#adb5bd; cursor:not-allowed;" : "color:#ff4d4f; cursor:pointer;";
+  
+          tableHtml += `<tr>`;
+          tableHtml += `<td class="text-center" style="width:50px;">
+                          <i class="fa fa-edit btn btn-sm btn-light" 
+                             style="font-size:15px;${editStyle}" 
+                             onclick="if(!this.disabled) modal_datachotcong_3_editRow(this)" 
+                             ${editDisabled}></i>
+                        </td>`;
+          tableHtml += `<td class="text-center" style="width:50px;">
+                          <i class="fa fa-sharp fa-solid fa-trash btn btn-sm btn-light" 
+                             style="font-size:15px;${deleteStyle}" 
+                             onclick="if(!this.disabled) modal_datachotcong_3_delRow(this)" 
+                             ${deleteDisabled}></i>
+                        </td>`;
+  
+          headers.forEach((_, colIndex) => {
+              const cellData = row[colIndex] ?? "";
+              tableHtml += `<td>${cellData}</td>`;
+          });
+  
+          tableHtml += `</tr>`;
+      });
+  
+      tableHtml += `</tbody></table></div>`;
+      $('#dataTableHieuSuat_div').html(tableHtml);
+  
+      // ✅ Loại bỏ nguyên nhân tạo scroll ngoài
+      $('#dataTableHieuSuat_div')
+        .removeClass('table-responsive')
+        .css({ overflowX: 'visible' });
+  
+      // Hàm sửa dòng
+      window.modal_datachotcong_3_editRow = function(element) {
+          console.log("Edit row clicked");
+          const row = $(element).closest('tr');
+          // TODO: logic edit
+      };
+  
+      // Hàm xóa dòng
+      window.modal_datachotcong_3_delRow = function(element) {
+          const table = $('#dataTableHieuSuat').DataTable();
+          const row = $(element).closest('tr');
+  
+          Swal.fire({
+              title: 'Xác nhận xóa?',
+              text: "Bạn không thể hoàn tác thao tác này!",
+              icon: 'warning',
+              showCancelButton: true,
+              confirmButtonColor: '#d33',
+              cancelButtonColor: '#3085d6',
+              confirmButtonText: 'Xóa',
+              cancelButtonText: 'Hủy'
+          }).then((result) => {
+              if (result.isConfirmed) {
+                  table.row(row).remove().draw();
+                  document.getElementById('modal_datachotcong_2_trangthaiaction').value = "Đang sửa";
+                  Swal.fire('Đã xóa!', 'Dòng đã được xóa khỏi bảng.', 'success');
+              }
+          });
+      };
+  
+      // === DataTables (Responsive + scrollX) ===
+      const dt = $('#dataTableHieuSuat').DataTable({
+          destroy: true,
+          responsive: { details: { type:'column', target:'tr' } },
+          scrollX: true,              // GIỮ cuộn ngang của DataTables
+          stateSave: true,
+          select: true,
+          ordering: true,
+          order: [[11, 'asc'], [5, 'asc'], [3, 'asc']],
+          pageLength: 10,
+          lengthMenu: [[10, 25, 50, 100, -1], ['10', '25', '50', '100', 'Tất cả']],
+          columnDefs: [
+            {
+              targets: function (idx, data, node) {
+                if (!dt) return false;
+                const headerText = $(dt.column(idx).header()).text().trim().toUpperCase();
+                return ['ID', 'ID JOB', 'PHÂN QUYỀN'].includes(headerText);
+              },
+              visible: false
+            }
+          ],
+          dom: "<'row'<'col-6'l><'col-6'f>>" +
+               "<'row'<'col-sm-12'tr>>" +
+               "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
+          language: {
+              lengthMenu: "_MENU_ ",
+              zeroRecords: "Không tìm thấy",
+              info: "Hiển thị _START_ đến _END_ trong _TOTAL_ dòng",
+              infoEmpty: "Không có dữ liệu",
+              infoFiltered: "(lọc từ _MAX_ dòng)",
+              search: '<i class="fas fa-search"></i>:',
+              paginate: {
+                  first: "Đầu",
+                  previous: '<i class="fas fa-chevron-left"></i>',
+                  next: '<i class="fas fa-chevron-right"></i>',
+                  last: "Cuối"
+              }
+          },
+          footerCallback: function () {
+              const api = this.api();
+              const intVal = i => (typeof i === 'string' ? i.replace(/[\$,]/g, '') * 1 :
+                                   typeof i === 'number' ? i : 0);
+  
+              const calculateTotalByGroup = (groupData, valueColumnIndex) => {
+                  const groupTotals = {};
+                  groupData.forEach((value, i) => {
+                      const amount = intVal(api.cell(i, valueColumnIndex).data());
+                      if (!groupTotals[value]) groupTotals[value] = 0;
+                      groupTotals[value] += amount;
+                  });
+                  return groupTotals;
+              };
+  
+              const winFailData = api.column(24, { page: 'current' }).data().toArray();
+              const hoTenData   = api.column(6,  { page: 'current' }).data().toArray();
+              const doKhoData   = api.column(13, { page: 'current' }).data().toArray();
+              const chatLuongData = api.column(20,{ page: 'current' }).data().toArray();
+              const hieuSuatColumnIndex = 22;
+  
+              const winFailTotals   = calculateTotalByGroup(winFailData,   hieuSuatColumnIndex);
+              const hoTenTotals     = calculateTotalByGroup(hoTenData,     hieuSuatColumnIndex);
+              const doKhoTotals     = calculateTotalByGroup(doKhoData,     hieuSuatColumnIndex);
+              const chatLuongTotals = calculateTotalByGroup(chatLuongData, hieuSuatColumnIndex);
+  
+              $('#winFail_Card').html(generateCardHtml(winFailTotals));
+              $('#hoTen_Card').html(generateCardHtml(hoTenTotals));
+              $('#doKho_Card').html(generateCardHtml(doKhoTotals));
+              $('#chatLuong_Card').html(generateCardHtml(chatLuongTotals));
+  
+              function generateCardHtml(groupTotals) {
+                  let html = `<ul>`;
+                  Object.keys(groupTotals).forEach(group => {
+                      const formattedValue = groupTotals[group]
+                          .toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                      html += `<li>${group}: ${formattedValue}</li>`;
+                  });
+                  html += `</ul>`;
+                  return html;
+              }
+          },
+          initComplete: function () {
+              var table = $('#dataTableHieuSuat').DataTable();
+              const columnMappings = {
+                  3:  '#filterkhoi',
+                  7:  '#filterCoChe',
+                  8:  '#filterLoaiCoChe',
+                  9:  '#filterDoKho',
+                  10: '#filterChatLuong',
+                  5:  '#filterHoTen'
+              };
+  
+              Object.keys(columnMappings).forEach(function (columnIdx) {
+                  const column = table.column(columnIdx);
+                  const select = $(columnMappings[columnIdx])
+                      .on('change', function () { column.search(this.value).draw(); });
+  
+                  column.data().unique().sort().each(function (d) {
+                      select.append(`<option value="${d}">${d}</option>`);
+                  });
+  
+                  const exist = {};
+                  $(`${columnMappings[columnIdx]} > option`).each(function () {
+                      if (exist[$(this).val()]) $(this).remove();
+                      else exist[$(this).val()] = true;
+                  });
+              });
+  
+              var buttons = new $.fn.dataTable.Buttons(table, {
+                  buttons: [
+                      { extend: 'excelHtml5', title: 'BÁO CÁO CHI TIẾT THU NHẬP', filename: 'BÁO CÁO CHI TIẾT THU NHẬP',
+                        exportOptions: { orthogonal: 'export', columns: Array.from({ length: table.columns().count() }, (_, i) => i) } },
+                      { extend: 'csvHtml5', title: 'BÁO CÁO CHI TIẾT THU NHẬP', filename: 'BÁO CÁO CHI TIẾT THU NHẬP',
+                        exportOptions: { orthogonal: 'export', columns: Array.from({ length: table.columns().count() }, (_, i) => i) } }
+                  ]
+              }).container().appendTo($('#buttons'));
+  
+              $('#excelfull2').on('click', () => table.button(0).trigger());
+              $('#csv2').on('click', () => table.button(1).trigger());
+          }
+      });
+  
+      // ✅ Ổn định khi init/draw/search/responsive
+      dt.on('init.dt draw.dt search.dt responsive-resize.dt', function(){
+          dt.columns.adjust();
+      });
+  
+      // Sự kiện cập nhật khi user thao tác
+      $('#dataTableHieuSuat')
+          .on('change', '.phan-loai-select', function () { dt.draw(); })
+          .on('blur', 'td[contenteditable="true"]', function () { dt.draw(); });
+  
+      $('#modal_datachotcong_2_trangthaiaction').text('');
+  }*/
+
+  function pg_general_3_showSum() {
+    // Populate dropdown Kỳ nghiệm thu từ giá trị màn hình chính
+    modal_tonghophieusuat_3_taoDropDown_KyNghiemThu();
+    // Mở modal
+    $('#tongHopHieuSuat_Modal').modal('show');
+  }
+
+  function pg_general_3_showQuickSum() {
+    var menuCollapse = new bootstrap.Collapse(document.getElementById('quickSum'), {
+      toggle: true  // Tự động đóng/mở khi gọi hàm
+    });
+
+  }
+  /*function pg_general_3_showFilter(){
+      var menuCollapse = new bootstrap.Collapse(document.getElementById('menu'), {
+          toggle: true  // Tự động đóng/mở khi gọi hàm
+      });
+  }*/
+
+  function pg_general_3_showFilter() {
+    $('#menu').collapse('toggle');  // Sử dụng jQuery method cho collapse
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+      var tooltip = new bootstrap.Tooltip(tooltipTriggerEl);
+
+      // Ẩn tooltip ngay khi button được click
+      tooltipTriggerEl.addEventListener("click", function () {
+        tooltip.hide();
+      });
+
+      return tooltip;
+    });
+  });
+
+
+
+</script>

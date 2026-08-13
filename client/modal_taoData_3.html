@@ -1,0 +1,82 @@
+
+<script>
+
+  //TẠO SELECT2
+    $(document).ready(function () {
+        $("#modal_taoData_2_CoChe, #modal_taoData_2_Year").each(function () {
+            $(this).select2({
+                theme: "bootstrap-5",
+                allowClear: true,
+                width: 'style', // Dùng 'style' thay vì 'resolve' để giữ nguyên kích thước
+                placeholder: $(this).attr("title"), // Đặt placeholder đúng
+                dropdownParent: $("#modal_taoData_2_Modal"), // Fix lỗi hiển thị trong modal
+            }).on("select2:clear", function () {
+                // Thay vì đặt giá trị null, hãy đặt lại placeholder
+                $(this).val("").trigger("change");
+            });
+        });
+    });
+  //HIỂN THỊ MODAL
+    function modal_taoData_3_ShowModal(){
+      modal_taoData_3_taoDropDown_CoChe();
+      modal_taoData_3_taoDropDown_Year();
+      $('#modal_taoData_2_Modal').modal('show');
+    }
+
+  function modal_taoData_3_taoDropDown_CoChe() {
+      // Gọi hàm Apps Script để lấy danh sách dropdown
+      google.script.run.withSuccessHandler(dropDown_fTaoData_CoChe).getDropdownList("HieuSuat!A2:A");
+    }
+    function dropDown_fTaoData_CoChe(values) {
+      populateDropdown("modal_taoData_2_CoChe", values);
+    }
+
+    
+    function modal_taoData_3_taoDropDown_Year() {
+      // Gọi hàm Apps Script để lấy danh sách dropdown
+      google.script.run.withSuccessHandler(dropDown_fTaoData_Nam).getDropdownList("HieuSuat!F2:F");
+    }
+    function dropDown_fTaoData_Nam(values) {
+      populateDropdown("modal_taoData_2_Year", values);
+    }
+
+    function modal_taoData_3_backhideCol0() {
+        document.getElementById("modal_taoData_2_message").innerHTML = "";
+
+        // Reset Select2 dropdowns
+        $("#modal_taoData_2_CoChe, #modal_taoData_2_Year").val("").trigger("change");
+
+        // Ẩn modal
+        $("#modal_taoData_2_Modal").hide();
+    }
+
+
+    function modal_taoData_3_Submit(){
+        // Hiển thị spinner modal khi quá trình tải dữ liệu bắt đầu
+        $('#spinnerModal').modal('show');
+        var year = document.getElementById('modal_taoData_2_Year').value;
+        var strCoChe = document.getElementById('modal_taoData_2_CoChe').value;
+        var fileName = year + "-" + strCoChe;
+
+        // Gửi dữ liệu tới server
+        google.script.run
+            .withSuccessHandler(function (response) {
+                // Ẩn spinner modal khi quá trình xử lý xong
+                $('#spinnerModal').modal('hide');
+
+                // Kiểm tra phản hồi từ server
+                if (response.success) {
+                    alert("Tạo file thành công!\n" + response.message);
+                } else {
+                    alert("Có lỗi xảy ra: " + response.message);
+                }
+            })
+            .withFailureHandler(function (error) {
+                // Ẩn spinner modal khi có lỗi
+                $('#spinnerModal').modal('hide');
+                alert("Đã xảy ra lỗi khi gửi dữ liệu: " + error.message);
+            })
+            .modal_taoData_1_taoFileHieuSuatMoi(fileName, year, strCoChe);
+    }
+</script>
+

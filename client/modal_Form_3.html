@@ -1,0 +1,451 @@
+<script>
+    //CÁC CACHED
+
+    //Các DOM
+    $(document).ready(function () {
+        let selectIds = [
+            "#fHS_KyNghiemThu", "#fHS_KyChiTra", "#fHS_Khoi", "#fHS_TenCoChe", "#fHS_LoaiCoChe", "#fHS_NhomCongViec", "#fHS_TenJob", "#fHS_DoKho", "#fHS_ChatLuong", "#fHS_DuAn", "#fHS_noibo_khach", "#fHS_WinFail"
+        ];
+
+        selectIds.forEach(function (selector) {
+            let $el = $(selector);
+            let placeholderText = $el.attr("title");
+
+            $el.select2({
+                theme: "bootstrap-5",
+                selectionCssClass: "select2--small",
+                dropdownCssClass: "select2--small",
+                allowClear: true,
+                placeholder: placeholderText,
+                width: '100%', // Giữ nguyên chiều rộng
+                dropdownAutoWidth: true, // Tự động điều chỉnh độ rộng dropdown
+                dropdownParent: $("#modal_Form_2_modal")
+            });
+
+
+            // Reset về trạng thái placeholder ngay sau khi khởi tạo
+            $el.val(null).trigger("change");
+        });
+    });
+    $(document).ready(function () {
+        $("#fHS_TenCoChe").on("change", function () {
+            var selectedValue = $(this).val();
+            if (selectedValue) {
+                window.pg_general_3_cachedKhung = null; // Reset trước khi cập nhật
+
+                if ($("#recId").val().trim() === "") {
+                    google.script.run.withSuccessHandler(function (result) {
+                        window.pg_general_3_cachedKhung = result;
+                        //console.log("Dữ liệu đã được cache:", result);
+
+                        populateDropdown("fHS_NhomCongViec", []);
+                        populateDropdown("fHS_TenJob", []);
+                        populateDropdown("fHS_DoKho", []);
+                        populateDropdown("fHS_ChatLuong", []);
+                        $("#fHS_KLuong, #fHS_DonGia").val("");
+
+                        let uniqueValues = [...new Set(result.map(row => row[2]))];
+                        populateDropdown("fHS_NhomCongViec", uniqueValues);
+                    }).getDropdownList_KhungCoChe(selectedValue);
+                } else {
+                    window.pg_general_3_cachedKhung = pg_general_3_cachedKhung_edit;
+                    //console.log("Dữ liệu lấy từ cache đã chỉnh sửa:", pg_general_3_cachedKhung_edit);
+
+                    populateDropdown("fHS_NhomCongViec", []);
+                    populateDropdown("fHS_TenJob", []);
+                    populateDropdown("fHS_DoKho", []);
+                    populateDropdown("fHS_ChatLuong", []);
+                    $("#fHS_KLuong, #fHS_DonGia").val("");
+
+                    let uniqueValues = [...new Set(pg_general_3_cachedKhung_edit.map(row => row[2]))];
+                    populateDropdown("fHS_NhomCongViec", uniqueValues);
+                }
+            }
+        });
+
+        $("#fHS_NhomCongViec").on("change", function () {
+            var selectedGroup = $(this).val();
+            populateDropdown("fHS_TenJob", []);
+            populateDropdown("fHS_DoKho", []);
+            populateDropdown("fHS_ChatLuong", []);
+            $("#fHS_KLuong, #fHS_DonGia").val("");
+
+            if (selectedGroup && window.pg_general_3_cachedKhung) {
+                let uniqueJobs = [...new Set(window.pg_general_3_cachedKhung
+                    .filter(row => row[2] === selectedGroup)
+                    .map(row => row[3]))];
+                populateDropdown("fHS_TenJob", uniqueJobs);
+            }
+        });
+
+        $("#fHS_TenJob").on("change", function () {
+            var selectedGroup = $("#fHS_NhomCongViec").val();
+            var selectedJob = $(this).val();
+            populateDropdown("fHS_DoKho", []);
+            populateDropdown("fHS_ChatLuong", []);
+            $("#fHS_KLuong, #fHS_DonGia").val("");
+
+            if (selectedGroup && selectedJob && window.pg_general_3_cachedKhung) {
+                let uniqueLevels = [...new Set(window.pg_general_3_cachedKhung
+                    .filter(row => row[2] === selectedGroup && row[3] === selectedJob)
+                    .map(row => row[4]))];
+                populateDropdown("fHS_DoKho", uniqueLevels);
+            }
+        });
+
+        $("#fHS_DoKho").on("change", function () {
+            var selectedGroup = $("#fHS_NhomCongViec").val();
+            var selectedJob = $("#fHS_TenJob").val();
+            var selectedLevel = $(this).val();
+            populateDropdown("fHS_ChatLuong", []);
+            $("#fHS_KLuong, #fHS_DonGia").val("");
+
+            if (selectedGroup && selectedJob && selectedLevel && window.pg_general_3_cachedKhung) {
+                let filteredRows = window.pg_general_3_cachedKhung.filter(row =>
+                    row[2] === selectedGroup && row[3] === selectedJob && row[4] === selectedLevel
+                );
+
+                let uniqueQuality = [...new Set(filteredRows.map(row => row[8]))];
+                populateDropdown("fHS_ChatLuong", uniqueQuality);
+
+                // Nếu fHS_ChatLuong rỗng, cập nhật trực tiếp fHS_KLuong và fHS_DonGia
+                if ((uniqueQuality.length === 0 || uniqueQuality[0] === "") && filteredRows.length > 0) {
+                    $("#fHS_KLuong").val(filteredRows[0][10]);
+                    $("#fHS_DonGia").val(filteredRows[0][11]);
+                }
+            }
+        });
+
+        $("#fHS_ChatLuong").on("change", function () {
+            var selectedGroup = $("#fHS_NhomCongViec").val();
+            var selectedJob = $("#fHS_TenJob").val();
+            var selectedLevel = $("#fHS_DoKho").val();
+            var selectedQuality = $(this).val();
+
+            if (selectedGroup && selectedJob && selectedLevel && selectedQuality && window.pg_general_3_cachedKhung) {
+                let filteredRow = window.pg_general_3_cachedKhung.find(row =>
+                    row[2] === selectedGroup && row[3] === selectedJob && row[4] === selectedLevel && row[8] === selectedQuality
+                );
+
+                if (filteredRow) {
+                    $("#fHS_KLuong").val(filteredRow[10]);
+                    $("#fHS_DonGia").val(filteredRow[11]);
+                }
+            }
+        });
+    });
+
+    // --- DIRTY CHECK LOGIC ---
+    var modal_Form_isDirty = false;
+    var modal_Form_forceClose = false;
+
+    // Chỉ đánh dấu dirty khi người dùng thật sự sửa form.
+    // Các lệnh .val(...).trigger('change') lúc khởi tạo/đổ dữ liệu không được tính.
+    $(document).ready(function () {
+        $('#modal_Form_2_form :input').on('change input', function (e) {
+            if (!e.originalEvent) return;
+            modal_Form_isDirty = true;
+        });
+
+        // Select2 phát sự kiện change tổng hợp, vì vậy theo dõi riêng thao tác chọn/xóa
+        // của người dùng thay vì coi mọi change do code là thay đổi chưa lưu.
+        $('#modal_Form_2_form select').on('select2:select select2:unselect select2:clear', function () {
+            modal_Form_isDirty = true;
+        });
+
+        // Intercept modal closing
+        $('#modal_Form_2_modal').on('hide.bs.modal', function (e) {
+            if (modal_Form_forceClose) {
+                modal_Form_forceClose = false;
+                return;
+            }
+
+            if (modal_Form_3_hasUnsavedChanges()) {
+                e.preventDefault();
+
+                // const backdrop = document.querySelector(".modal-backdrop");
+                // if(backdrop) backdrop.style.zIndex = "1000";
+
+                Swal.fire({
+                    title: "Dữ liệu chưa được lưu!",
+                    text: "Bạn đã nhập/thay đổi thông tin nhưng chưa lưu. Bạn có chắc muốn đóng?",
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonText: "Đóng luôn",
+                    cancelButtonText: "Quay lại"
+                }).then((result) => {
+                    // if(backdrop) backdrop.style.zIndex = "";
+                    if (result.isConfirmed) {
+                        modal_Form_forceClose = true;
+                        modal_Form_isDirty = false;
+                        $('#modal_Form_2_modal').modal('hide');
+                    }
+                });
+            }
+        });
+    });
+
+    function modal_Form_3_hasUnsavedChanges() {
+        return modal_Form_isDirty;
+    }
+    //RESET MODAL
+    function resetModalForm2() {
+        // Reset các input text, number, textarea
+        $("#modal_Form_2_form")[0].reset();
+
+        // Reset các select2 về trạng thái mặc định
+        let selectIds = [
+            "#fHS_KyNghiemThu", "#fHS_KyChiTra", "#fHS_Khoi", "#fHS_TenCoChe", "#fHS_LoaiCoChe",
+            "#fHS_NhomCongViec", "#fHS_TenJob", "#fHS_DoKho", "#fHS_ChatLuong", "#fHS_DuAn",
+            "#fHS_noibo_khach", "#fHS_WinFail"
+        ];
+
+        selectIds.forEach(function (selector) {
+            let $el = $(selector);
+            $el.val(null).trigger("change"); // Đưa về trạng thái placeholder
+        });
+
+        // Xóa nội dung các trường textarea
+        $("#fHS_MoTa, #fHS_KetQua, #fHS_LinkOutput, #fHS_GhiChu").val("");
+
+        // Reset các trường số về rỗng
+        $("#fHS_SoLuong, #fHS_KLuong, #fHS_TyLeThamGia, #fHS_DonGia, #fHS_HieuSuat").val("");
+
+        // Nếu có dữ liệu cache, xóa nó
+        window.pg_general_3_cachedKhung = null;
+
+        // Reset dirty status
+        setTimeout(() => { modal_Form_isDirty = false; }, 100);
+    }
+
+    // Gán sự kiện cho nút Reset
+    $(document).ready(function () {
+        $("button[type='reset'][form='modal_Form_2_form']").on("click", function (event) {
+            event.preventDefault(); // Ngăn form reset mặc định (tránh mất format select2)
+            resetModalForm2();
+        });
+    });
+
+
+    //Hàm gọi form
+    function modal_Form_3_showModal() {
+        resetModalForm2();
+        $('#modal_Form_2_modal').modal('show');
+    }
+
+    //Hàm tạo droplist
+
+    function modal_Form_3_createDropDown_KyNghiemThu() {
+        // Gọi hàm Apps Script để lấy danh sách dropdown
+        google.script.run.withSuccessHandler(dropDown_fHS_KyNghiemThu).getDropdownList("Master!Q2:Q");
+    }
+    function dropDown_fHS_KyNghiemThu(values) {
+        populateDropdown("fHS_KyNghiemThu", values);
+    }
+    function modal_Form_3_createDropDown_KyChiTra() {
+        // Gọi hàm Apps Script để lấy danh sách dropdown
+        google.script.run.withSuccessHandler(dropDown_fHS_KyChiTra).getDropdownList("Master!B2:B");
+    }
+    function dropDown_fHS_KyChiTra(values) {
+        populateDropdown("fHS_KyChiTra", values);
+    }
+
+
+    //Drop khối
+    function modal_Form_3_createDropdown_Khoi() {
+        // Gọi hàm Apps Script để lấy danh sách dropdown
+        google.script.run.withSuccessHandler(dropDown_Khoi_fHS).getDropdownList("Master!D2:D");
+    }
+    function dropDown_Khoi_fHS(values) {
+        populateDropdown("fHS_Khoi", values);
+    }
+
+    //Drop tên cơ chế/Khung cơ chế
+
+    function modal_Form_3_createDropdown_TenCoChe() {
+        // Gọi hàm Apps Script để lấy danh sách dropdown
+        google.script.run.withSuccessHandler(dropDown_CoChe_fHS).getDropdownList("HieuSuat!A2:A");
+    }
+    function dropDown_CoChe_fHS(values) {
+        populateDropdown("fHS_TenCoChe", values);
+    }
+
+
+    /**
+     * Hàm lấy dữ liệu và cập nhật vào form
+     */
+    function modal_Form_3_editRow(records) {
+        $('#modal_Form_2_modal').modal('show');
+
+        // Hiển thị thông báo
+        document.getElementById("modal_Form_2_message").innerHTML =
+            "<div class='alert alert-warning' role='alert'>Vui lòng chờ vài giây để dữ liệu được load lên form</div>";
+
+        setTimeout(() => {
+            document.getElementById("modal_Form_2_message").innerHTML = "";
+        }, 5000);
+
+        if (!records || records.length === 0) {
+            document.getElementById("modal_Form_2_message").innerHTML =
+                "<div class='alert alert-warning' role='alert'>Dữ liệu đã khóa, không thể sửa</div>";
+            $('#spinnerModal').modal('hide');
+            return;
+        }
+
+        // Gán giá trị cho các input text
+        document.getElementById('recId').value = records[0];
+        document.getElementById('quyen').value = records[27];
+        document.getElementById('fHS_MNS').value = records[3];
+        document.getElementById('fHS_HoTen').value = records[4];
+        document.getElementById('fHS_Team').value = records[5];
+
+        // Gán giá trị cho các input số & phần trăm
+        document.getElementById('fHS_MoTa').value = records[12];
+        document.getElementById('fHS_KetQua').value = records[13];
+        document.getElementById('fHS_LinkOutput').value = records[14];
+        document.getElementById('fHS_SoLuong').value = records[15]
+        document.getElementById('fHS_KLuong').value = records[16]
+        document.getElementById('fHS_TyLeThamGia').value = records[17]
+        document.getElementById('fHS_ChatLuong').value = records[18]
+        document.getElementById('fHS_tyLeHuong').value = records[19]
+        document.getElementById('fHS_HieuSuat').value = records[20]
+        document.getElementById('fHS_GhiChu').value = records[21];
+        document.getElementById('fHS_WinFail').value = records[22];
+        document.getElementById('fHS_noibo_khach').value = records[23];
+        document.getElementById('fHS_DuAn').value = records[24];
+
+        // Gán giá trị cho Select2 (chờ nếu cần)
+        setTimeout(() => {
+            Promise.all([
+                updateSelect2('fHS_KyNghiemThu', records[1]),
+                updateSelect2('fHS_Khoi', records[2]),
+                updateSelect2('fHS_TenCoChe', records[6]),
+                updateSelect2('fHS_LoaiCoChe', records[7]),
+                updateSelect2('fHS_IDjob', records[8]),
+                updateSelect2('fHS_NhomCongViec', records[9]),
+                updateSelect2('fHS_TenJob', records[10]),
+                updateSelect2('fHS_DoKho', records[11])
+            ]).then(() => {
+                enableSelect2Events();
+                // Reset dirty sau khi load xong data
+                modal_Form_isDirty = false;
+            });
+        }, 300);
+
+    }
+    function updateSelect2(elementId, value) {
+        return new Promise((resolve) => {
+            let selectElement = $('#' + elementId);
+
+            // Kiểm tra nếu giá trị chưa có trong dropdown thì thêm vào
+            if (selectElement.find("option[value='" + value + "']").length === 0) {
+                let newOption = new Option(value, value, true, true);
+                selectElement.append(newOption);
+            }
+
+            // Gán giá trị và kích hoạt sự kiện change
+            selectElement.val(value).trigger("change");
+
+            // Chờ sự kiện change hoàn tất trước khi tiếp tục
+            selectElement.one("change", function () {
+                setTimeout(() => resolve(), 500); // Đợi 500ms trước khi tiếp tục
+            });
+        });
+    }
+
+
+    /**
+     * Hàm bật lại sự kiện change
+     */
+    function enableSelect2Events() {
+        $("#fHS_NhomCongViec").on("change", function () {
+            var selectedGroup = $(this).val();
+            populateDropdown("fHS_TenJob", []);
+            populateDropdown("fHS_DoKho", []);
+            populateDropdown("fHS_ChatLuong", []);
+            $("#fHS_KLuong, #fHS_DonGia").val("");
+
+            let dataSource = ($("#recId").val().trim() === "") ? window.pg_general_3_cachedKhung : pg_general_3_cachedKhung_edit;
+
+            if (selectedGroup && dataSource) {
+                let uniqueJobs = [...new Set(dataSource
+                    .filter(row => row[2] === selectedGroup)
+                    .map(row => row[3]))];
+                populateDropdown("fHS_TenJob", uniqueJobs);
+            }
+        });
+
+        $("#fHS_TenJob").on("change", function () {
+            var selectedGroup = $("#fHS_NhomCongViec").val();
+            var selectedJob = $(this).val();
+            populateDropdown("fHS_DoKho", []);
+            populateDropdown("fHS_ChatLuong", []);
+            $("#fHS_KLuong, #fHS_DonGia").val("");
+
+            let dataSource = ($("#recId").val().trim() === "") ? window.pg_general_3_cachedKhung : pg_general_3_cachedKhung_edit;
+
+            if (selectedGroup && selectedJob && dataSource) {
+                let uniqueLevels = [...new Set(dataSource
+                    .filter(row => row[2] === selectedGroup && row[3] === selectedJob)
+                    .map(row => row[4]))];
+                populateDropdown("fHS_DoKho", uniqueLevels);
+            }
+        });
+
+        $("#fHS_DoKho").on("change", function () {
+            var selectedGroup = $("#fHS_NhomCongViec").val();
+            var selectedJob = $("#fHS_TenJob").val();
+            var selectedLevel = $(this).val();
+            populateDropdown("fHS_ChatLuong", []);
+            $("#fHS_KLuong, #fHS_DonGia").val("");
+
+            let dataSource = ($("#recId").val().trim() === "") ? window.pg_general_3_cachedKhung : pg_general_3_cachedKhung_edit;
+
+            if (selectedGroup && selectedJob && selectedLevel && dataSource) {
+                let filteredRows = dataSource.filter(row =>
+                    row[2] === selectedGroup && row[3] === selectedJob && row[4] === selectedLevel
+                );
+
+                let uniqueQuality = [...new Set(filteredRows.map(row => row[8]))];
+                populateDropdown("fHS_ChatLuong", uniqueQuality);
+
+                if ((uniqueQuality.length === 0 || uniqueQuality[0] === "") && filteredRows.length > 0) {
+                    $("#fHS_KLuong").val(filteredRows[0][10]);
+                    $("#fHS_DonGia").val(filteredRows[0][11]);
+                }
+            }
+        });
+    }
+
+    /**Đoạn code này chưa xử lý xong*/
+    //Đoạn code này dùng để submit Form
+    function handleFormSubmit(formObject) {
+
+        // Hiển thị modal loading
+        $('#spinnerModal').modal('show');
+
+        google.script.run.withSuccessHandler(function (response) {
+            $('#spinnerModal').modal('hide');
+
+            const messageContainer = document.getElementById("message");
+
+            if (response === "Success") {
+
+                messageContainer.innerHTML = "<div class='alert alert-success' role='alert'>Ghi kết quả thành công</div>";
+
+                // Reset form và ẩn thông báo sau 5 giây
+                document.getElementById("modal_Form_2_form").reset();
+                modal_Form_isDirty = false; // Reset dirty flag sau khi lưu thành công
+                setTimeout(() => messageContainer.innerHTML = "", 5000);
+
+            } else {
+                messageContainer.innerHTML = `<div class='alert alert-danger' role='alert'>${response}</div>`;
+            }
+        }).pgHieuSuatGs_ProcessForm(formObject);
+    }
+
+
+
+
+
+</script>

@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Upload hiệu suất – Clean Neutral</title>
+
+  <!-- Bootstrap 5 & Icons (CDN) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
+  <!-- SheetJS for Excel Export -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+
+  <style>
+    /* =============================
+       Palette & Utilities
+       ============================= */
+    #uploadHieuSuat_Modal {
+      --teal-700: #0F766E;
+      --teal-600: #12756C;
+      --teal-800: #0C5E58;
+      --bg-subtle: #F7F9FB;
+      --bg-body-subtle: #F5F7FA;
+      --border-subtle: #cbd5e1;
+    }
+
+    #uploadHieuSuat_Modal .text-bg-teal {
+      background-color: var(--teal-700) !important;
+      color: #fff !important;
+    }
+
+    #uploadHieuSuat_Modal .text-teal-700 {
+      color: var(--teal-700) !important;
+    }
+
+    #uploadHieuSuat_Modal .text-teal-600 {
+      color: var(--teal-600) !important;
+    }
+
+    #uploadHieuSuat_Modal .btn-teal {
+      background: var(--teal-700);
+      color: #fff;
+    }
+
+    #uploadHieuSuat_Modal .btn-teal:hover {
+      background: var(--teal-800);
+      color: #fff;
+    }
+
+    #uploadHieuSuat_Modal .bg-subtle {
+      background: var(--bg-subtle);
+    }
+
+    #uploadHieuSuat_Modal .bg-body-subtle {
+      background: var(--bg-body-subtle);
+    }
+
+    /* =============================
+       Modal Layout
+       ============================= */
+    #uploadHieuSuat_Modal .modal-content {
+      border-radius: 1rem;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    #uploadHieuSuat_Modal .modal-body {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #uploadHieuSuat_Modal .modal-body .container-fluid {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #uploadHieuSuat_Modal .modal-body .card {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #uploadHieuSuat_Modal .modal-body .card-body {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #uploadHieuSuat_Modal .filter-strip {
+      border-top: 1px solid #eef2f7;
+      background: #fff;
+    }
+
+    /* =============================
+       Dropzone (Kéo thả file)
+       ============================= */
+    #uploadHieuSuat_Modal .dropzone {
+      cursor: pointer;
+      background: #fff;
+      border: 1px dashed var(--border-subtle);
+      border-radius: .5rem;
+      min-width: 260px;
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .25rem .5rem;
+    }
+
+    #uploadHieuSuat_Modal .dropzone:hover {
+      border-color: var(--teal-700);
+      background: #F0FBF9;
+    }
+
+    #uploadHieuSuat_Modal .dropzone.drag {
+      border-color: #22c55e;
+      background: #f0fdf4;
+    }
+
+    /* =============================
+       Table Styling
+       ============================= */
+    #uploadHieuSuat_Modal .table-scroll {
+      flex: 1;
+      overflow: auto;
+      height: 100%;
+    }
+
+    #uploadHieuSuat_Modal #tblExcel thead th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    #uploadHieuSuat_Modal #tblExcel th,
+    #uploadHieuSuat_Modal #tblExcel td {
+      white-space: nowrap;
+    }
+
+    #uploadHieuSuat_Modal #tblExcel td.num,
+    #uploadHieuSuat_Modal #tblExcel th.num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #uploadHieuSuat_Modal #tblExcel td.center,
+    #uploadHieuSuat_Modal #tblExcel th.center {
+      text-align: center;
+    }
+
+    /* Sticky cột 1 (VD: STT) và cột 2 (VD: Họ tên) nếu cần */
+    #uploadHieuSuat_Modal #tblExcel th.sticky,
+    #uploadHieuSuat_Modal #tblExcel td.sticky {
+      position: sticky;
+      left: 0;
+      background: #fff;
+      z-index: 2;
+      box-shadow: 2px 0 0 rgba(0, 0, 0, .03);
+    }
+
+    #uploadHieuSuat_Modal #tblExcel th.sticky-2,
+    #uploadHieuSuat_Modal #tblExcel td.sticky-2 {
+      left: 120px;
+      z-index: 2;
+    }
+
+    /* Link chip gọn cho URL dài */
+    #uploadHieuSuat_Modal .link-chip {
+      max-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      display: inline-block;
+      padding: .25rem .5rem;
+      border-radius: 999px;
+      background: #EFF6FF;
+      color: #0F172A;
+    }
+
+    /* Mật độ compact */
+    #uploadHieuSuat_Modal .table.table-sm> :not(caption)>*>* {
+      padding: .4rem .55rem;
+    }
+
+    /* Zebra & Hover nhẹ */
+    #uploadHieuSuat_Modal #tblExcel tbody tr:nth-child(odd) {
+      background: #fafafa;
+    }
+
+    #uploadHieuSuat_Modal #tblExcel tbody tr:hover {
+      background: #eef6ff;
+    }
+
+    /* =============================
+       Toast vị trí không che nội dung
+       ============================= */
+    #uploadHieuSuat_Modal .toast-container {
+      z-index: 1080;
+      top: 90px !important;
+      right: 1rem !important;
+      left: auto !important;
+    }
+
+    /* Responsive tinh chỉnh nhỏ */
+    @media (max-width: 768px) {
+      #uploadHieuSuat_Modal .dropzone {
+        min-width: 200px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Trigger mẫu (demo): <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadHieuSuat_Modal">Mở modal</button> -->
+
+  <!-- Modal Upload Hiệu Suất -->
+  <div class="modal fade" id="uploadHieuSuat_Modal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-fullscreen">
+      <div class="modal-content border-0">
+
+        <!-- Header / Toolbar -->
+        <div class="border-bottom bg-white">
+          <div class="container-fluid py-2">
+            <div class="d-flex align-items-center justify-content-between gap-3">
+              <div class="d-flex align-items-center gap-2">
+                <h5 class="mb-0 fw-semibold text-teal-700">Upload dữ liệu chi tiết</h5>
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <button class="btn btn-outline-primary" onclick="uploadMultiple_show();"
+                  title="Upload nhiều file hiệu suất">
+                  <i class="fas fa-cloud-upload-alt me-1"></i> Upload nhiều file
+                </button>
+                <a href="https://docs.google.com/spreadsheets/d/1Z_GtevnOW4aBajtUuhbFrL_PHIkWamxRxgfOjhD-Dz4/export?format=xlsx"
+                  class="btn btn-outline-success" title="Tải mẫu upload hiệu suất chi tiết">
+                  <i class="fa-solid fa-file-excel me-1"></i> Tải mẫu
+                </a>
+                <button class="btn btn-outline-info" id="modal_UpDataChiTiet_2_viewKhung" data-backdrop="static"
+                  data-keyboard="false" onclick="modal_khung_3_ShowModal();" title="Xem chi tiết khung hiệu suất">
+                  <i class="fa-solid fa-table me-1"></i> Khung
+                </button>
+                <button id="pgHieuSuatUploadHtml_TaoDataFile" type="button" class="btn btn-info btn-outline-light"
+                  onclick="modal_taoData_3_ShowModal()" title="Tạo file data" style="display: none;">
+                  <i class="fas fa-plus"></i> Tạo file data
+                </button>
+                <button type="button" class="btn-close" aria-label="Close" onclick="pg_uploadHieuSuat_Reset();"
+                  title="Đóng form upload"></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Filter bar -->
+          <div class="filter-strip">
+            <div class="container-fluid py-2">
+              <div class="row g-2 align-items-center">
+                <div class="col-auto">
+                  <select id="modal_UpDataChiTiet_2_kyNghiemThuDropDown" class="form-select form-select-sm"
+                    title="Kỳ nghiệm thu">
+                    <option value="" disabled selected>Kỳ nghiệm thu</option>
+                  </select>
+                </div>
+                <div class="col-auto">
+                  <select id="modal_UpDataChiTiet_2_khoiDropList" class="form-select form-select-sm text-center"
+                    title="Chọn khối">
+                    <option value="" disabled selected>Chọn khối</option>
+                  </select>
+                </div>
+                <div class="col-auto">
+                  <select id="modal_UpDataChiTiet_2_coCheUpload_DropList" class="form-select form-select-sm text-center"
+                    title="Chọn cơ chế">
+                    <option value="" disabled selected>Cơ chế</option>
+                  </select>
+                </div>
+                <div class="col-auto">
+                  <button type="button" class="btn btn-light btn-sm" id="reloadKhung_upHS"
+                    onclick="modal_khung_3_Reload()" title="Tải lại danh sách tên cơ chế">
+                    <i class="fas fa-sync-alt"></i>
+                  </button>
+                </div>
+
+                <!-- Khu vực file + action -->
+                <div class="col-12 col-md-auto ms-auto">
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="dropzone px-2" id="dropArea" title="Kéo thả hoặc chọn file để tải lên">
+                      <i class="fa-solid fa-file-arrow-up ms-1 text-teal-600"></i>
+                      <span id="fileLabel" class="small text-muted">Kéo thả hoặc chọn file…</span>
+                      <input type="file" id="fileUpload" class="d-none" />
+                    </div>
+                    <button id="upload" type="button" class="btn btn-outline-primary btn-sm"
+                      onclick="modal_UpDataChiTiet_3_LoadFile()" title="Chế độ xem trước">
+                      <i class="fas fa-cloud-upload-alt me-1"></i> Load
+                    </button>
+                    <button id="downloadExcel" type="button" class="btn btn-outline-success btn-sm"
+                      onclick="modal_UpDataChiTiet_3_ExportExcel()" title="Tải xuống file Excel kết quả"
+                      style="display: none;">
+                      <i class="fas fa-download me-1"></i> Tải xuống
+                    </button>
+                    <button id="import" type="button" class="btn btn-teal btn-sm"
+                      onclick="modal_UpDataChiTiet_3_ImportData()" title="Import dữ liệu vào hệ thống">
+                      <i class="fas fa-save me-1"></i> Lưu file
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Body -->
+        <div class="modal-body bg-body-subtle">
+          <div class="container-fluid">
+            <div class="card shadow-sm border-0 rounded-4">
+              <div class="card-header d-flex flex-wrap gap-2 align-items-center justify-content-between bg-white">
+                <div class="d-flex align-items-center gap-2">
+                  <!--<span class="text-muted small">Xem trước dữ liệu</span>
+                  <span id="previewMeta" class="badge text-bg-light">0 dòng</span> -->
+                  <input type="text" class="form-control" value="new" placeholder="new" id="modal_UpDataChiTiet_2_status"
+                    name="modal_UpDataChiTiet_2_status" style="display: none;">
+                </div>
+                <!--
+                <div class="d-flex align-items-center gap-2">
+                  <div class="dropdown">
+                    <button class="btn btn-light btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+                      <i class="fa-regular fa-eye me-1"></i> Cột hiển thị
+                    </button>
+                    <div class="dropdown-menu p-2 small" style="min-width: 260px; max-height: 40vh; overflow: auto;">
+                      <!-- checklist cột sẽ render bằng JS của bạn -!->
+                      <div id="columnVisibility" class="d-grid gap-2"></div>
+                    </div>
+                  </div>
+                  <div class="btn-group btn-group-sm" role="group" aria-label="Mật độ bảng">
+                    <button class="btn btn-light" id="densityComfort">Comfort</button>
+                    <button class="btn btn-light" id="densityCompact">Compact</button>
+                  </div>
+                </div> -->
+              </div>
+              <div class="card-body p-0">
+                <div class="table-responsive table-scroll">
+                  <table id="tblExcel" class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                      <!-- thead sẽ render bằng JS của bạn -->
+                    </thead>
+                    <tbody id="dvExcel"><!-- tbody sẽ render dữ liệu -->
+                      <!-- Gợi ý: render bằng hàm modal_UpDataChiTiet_3_LoadFile() hiện có -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Toast lỗi (góc trên phải) -->
+        <div class="toast-container position-fixed end-0 p-3" id="toastContainerHS">
+          <div id="errorToast" class="toast text-bg-danger border-0" role="alert" aria-live="assertive"
+            aria-atomic="true">
+            <div class="d-flex">
+              <div class="toast-body" id="errorToastMessage">Đã có lỗi xảy ra</div>
+              <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+                aria-label="Close"></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Các input/flag ẩn -->
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    $('#uploadHieuSuat_Modal').on('hidden.bs.modal', function () {
+      $('.modal-backdrop').remove(); // Xóa nền mờ
+    });
+    document.addEventListener("hidden.bs.modal", function () {
+      let backdrop = document.querySelector(".modal-backdrop");
+      if (backdrop) {
+        backdrop.remove(); // Xóa backdrop còn tồn tại
+      }
+      document.body.classList.remove("modal-open"); // Loại bỏ class giữ cuộn trang
+    });
+
+
+    $(document).ready(function () {
+      $("#modal_UpDataChiTiet_2_kyNghiemThuDropDown, #modal_UpDataChiTiet_2_khoiDropList, #modal_UpDataChiTiet_2_coCheUpload_DropList").each(function () {
+        $(this).select2({
+          theme: "bootstrap-5",
+          allowClear: true,
+          width: 'style', // Dùng 'style' thay vì 'resolve' để giữ nguyên kích thước
+          placeholder: $(this).attr("title"), // Đặt placeholder đúng
+          dropdownParent: $("#uploadHieuSuat_Modal"), // Fix lỗi hiển thị trong modal
+        }).on("select2:clear", function () {
+          // Thay vì đặt giá trị null, hãy đặt lại placeholder
+          $(this).val("").trigger("change");
+        });
+      });
+    });
+
+    /**
+     * Hàm parse số an toàn cho export Excel
+     * Trên bảng hiển thị: dấu . = ngăn cách hàng nghìn, dấu , = thập phân (định dạng VN)
+     * Khi export Excel: chuyển sang số chuẩn (dấu . = thập phân) để Excel nhận diện đúng
+     */
+    function parseSafeNumberForExport(value) {
+      if (!value && value !== 0) return null;
+      if (typeof value === 'number') return value;
+
+      let str = value.toString().trim();
+      if (str === '') return null;
+
+      // Loại bỏ khoảng trắng
+      str = str.replace(/\s/g, '');
+
+      // Đếm số lượng dấu chấm và phẩy
+      const dotCount = (str.match(/\./g) || []).length;
+      const commaCount = (str.match(/,/g) || []).length;
+
+      // Nếu không có dấu gì, parse trực tiếp
+      if (dotCount === 0 && commaCount === 0) {
+        const num = parseFloat(str);
+        return isNaN(num) ? null : num;
+      }
+
+      // *** ĐỊNH DẠNG VIỆT NAM: dấu . = nghìn, dấu , = thập phân ***
+
+      // Nếu chỉ có dấu phẩy (không có dấu chấm) -> dấu phẩy là thập phân
+      // VD: 23,5 -> 23.5
+      if (commaCount > 0 && dotCount === 0) {
+        const num = parseFloat(str.replace(/,/g, '.'));
+        return isNaN(num) ? null : num;
+      }
+
+      // Nếu chỉ có dấu chấm (không có dấu phẩy)
+      // Kiểm tra: nếu có nhiều dấu chấm HOẶC chỉ 1 dấu chấm nhưng có đúng 3 chữ số sau -> ngăn cách nghìn
+      // VD: 1.234 -> 1234, 10.000 -> 10000
+      // Nhưng: 12.5 -> 12.5 (chỉ 1 chữ số sau dấu chấm)
+      if (dotCount > 0 && commaCount === 0) {
+        if (dotCount > 1) {
+          // Nhiều dấu chấm -> chắc chắn là ngăn cách nghìn
+          // VD: 1.234.567 -> 1234567
+          const num = parseFloat(str.replace(/\./g, ''));
+          return isNaN(num) ? null : num;
+        } else {
+          // Chỉ 1 dấu chấm - kiểm tra số chữ số sau dấu chấm
+          const parts = str.split('.');
+          if (parts[1] && parts[1].length === 3) {
+            // Đúng 3 chữ số sau -> có thể là ngăn cách nghìn
+            // VD: 1.234 -> 1234
+            const num = parseFloat(str.replace('.', ''));
+            return isNaN(num) ? null : num;
+          } else {
+            // Không phải 3 chữ số -> coi như thập phân
+            // VD: 12.5 -> 12.5
+            const num = parseFloat(str);
+            return isNaN(num) ? null : num;
+          }
+        }
+      }
+
+      // Nếu có cả dấu chấm và phẩy -> định dạng VN chuẩn
+      // Dấu chấm = ngăn cách nghìn, dấu phẩy = thập phân
+      // VD: 1.234,56 -> 1234.56
+      if (dotCount > 0 && commaCount > 0) {
+        const num = parseFloat(str.replace(/\./g, '').replace(',', '.'));
+        return isNaN(num) ? null : num;
+      }
+
+      return null;
+    }
+
+    /**NHÓM HÀM TẠO GIAO DIỆN*/
+    /**
+     * Hàm export dữ liệu bảng ra file Excel
+     */
+    function modal_UpDataChiTiet_3_ExportExcel() {
+      try {
+        // Tìm bảng trong dvExcel (bảng được tạo động)
+        const tableInDiv = document.querySelector("#dvExcel table");
+
+        if (!tableInDiv || tableInDiv.rows.length === 0) {
+          showError('Không có dữ liệu để tải xuống!');
+          return;
+        }
+
+        // Lấy thông tin về kỳ nghiệm thu, khối, cơ chế để đặt tên file
+        const kyNghiemThu = document.getElementById('modal_UpDataChiTiet_2_kyNghiemThuDropDown').value || 'KyNT';
+        const khoi = document.getElementById('modal_UpDataChiTiet_2_khoiDropList').value || 'Khoi';
+        const coChe = document.getElementById('modal_UpDataChiTiet_2_coCheUpload_DropList').value || 'CoChe';
+
+        // Tạo tên file với timestamp
+        const now = new Date();
+        const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+        const fileName = `HieuSuat_${kyNghiemThu}_${khoi}_${coChe}_${timestamp}.xlsx`;
+
+        // Chuẩn bị dữ liệu
+        const data = [];
+
+        // Lấy tất cả các dòng từ bảng
+        const allRows = tableInDiv.rows;
+
+        for (let i = 0; i < allRows.length; i++) {
+          const row = [];
+          const cells = allRows[i].cells;
+
+          for (let j = 0; j < cells.length; j++) {
+            // Kiểm tra xem cột có bị ẩn không
+            if (cells[j].style.display === 'none') continue;
+
+            let cellValue = cells[j].textContent.trim();
+
+            // Xử lý số - chỉ xử lý nếu không phải dòng header (dòng đầu tiên)
+            if (i > 0 && cellValue !== '' && cellValue !== 'Không có ID job') {
+              // Thử parse số bằng hàm parseSafeNumber (nếu có)
+              const numValue = parseSafeNumberForExport(cellValue);
+              if (!isNaN(numValue) && numValue !== null) {
+                cellValue = numValue;
+              }
+            }
+
+            row.push(cellValue);
+          }
+
+          if (row.length > 0) {
+            data.push(row);
+          }
+        }
+
+        if (data.length === 0) {
+          showError('Không có dữ liệu để tải xuống!');
+          return;
+        }
+
+        // Tạo workbook và worksheet
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(data);
+
+        // Tự động điều chỉnh độ rộng cột
+        const colWidths = [];
+        const headerRow = data[0];
+        for (let i = 0; i < headerRow.length; i++) {
+          let maxWidth = String(headerRow[i]).length;
+          for (let j = 1; j < data.length; j++) {
+            const cellLength = String(data[j][i] || '').length;
+            if (cellLength > maxWidth) {
+              maxWidth = cellLength;
+            }
+          }
+          colWidths.push({ wch: Math.min(maxWidth + 2, 50) }); // Max 50 characters
+        }
+        ws['!cols'] = colWidths;
+
+        // Thêm worksheet vào workbook
+        XLSX.utils.book_append_sheet(wb, ws, 'Hiệu Suất');
+
+        // Tải xuống file
+        XLSX.writeFile(wb, fileName);
+
+        // Hiển thị thông báo thành công
+        pg_general_3_showToast('File Excel đã được tải xuống thành công!', 'success');
+        console.log('File đã được tải xuống: ' + fileName);
+
+      } catch (error) {
+        console.error('Lỗi khi export Excel:', error);
+        showError('Có lỗi xảy ra khi tải xuống file Excel!');
+      }
+    }
+
+    function modal_UpDataChiTiet_3_taoDropDown_KyNghiemThu() {
+      // Gọi hàm Apps Script để lấy danh sách dropdown
+      google.script.run.withSuccessHandler(dropDown_KyNghiemThu).pgHieuSuatGs_layDanhSachKyNghiemThu();
+    }
+    function dropDown_KyNghiemThu(values) {
+      //console.log("Received values:", values);
+      // Hàm trả về mảng [[kyNghiemThu, ngayBatDau, ngayKetThuc], ...]
+      // Chỉ lấy cột đầu tiên (tên kỳ nghiệm thu)
+      if (Array.isArray(values) && values.length > 0 && Array.isArray(values[0])) {
+        values = values.map(row => row[0]);
+        //console.log("Flattened values:", values);
+      }
+      populateDropdown("modal_UpDataChiTiet_2_kyNghiemThuDropDown", values);
+    }
+
+    function modal_UpDataChiTiet_3_taoDropDown_Khoi() {
+      // Gọi hàm Apps Script để lấy danh sách dropdown
+      google.script.run.withSuccessHandler(dropDown_KhoiUpload).getDropdownList("Master!D2:D");
+    }
+    function dropDown_KhoiUpload(values) {
+      populateDropdown("modal_UpDataChiTiet_2_khoiDropList", values);
+    }
+    function modal_UpDataChiTiet_3_taoDropDown_CoChe() {
+      // Gọi hàm Apps Script để lấy danh sách dropdown
+      google.script.run.withSuccessHandler(dropDown_CoCheUpload).getDropdownList("HieuSuat!A2:A");
+    }
+    function dropDown_CoCheUpload(values) {
+      populateDropdown("modal_UpDataChiTiet_2_coCheUpload_DropList", values);
+    }
+    // =============================
+    // JS tiện ích: Dropzone + nhãn file + mật độ bảng + tooltip link
+    // =============================
+    (function () {
+      const drop = document.getElementById('dropArea');
+      const input = document.getElementById('fileUpload');
+      const label = document.getElementById('fileLabel');
+
+      if (drop && input && label) {
+        drop.addEventListener('click', () => input.click());
+        ['dragenter', 'dragover'].forEach(evt => drop.addEventListener(evt, e => { e.preventDefault(); drop.classList.add('drag'); }));
+        ['dragleave', 'drop'].forEach(evt => drop.addEventListener(evt, e => { e.preventDefault(); drop.classList.remove('drag'); }));
+        drop.addEventListener('drop', e => {
+          const files = e.dataTransfer.files;
+          if (files && files.length) { input.files = files; label.textContent = files[0].name; }
+        });
+        input.addEventListener('change', () => { label.textContent = input.files?.[0]?.name || 'Kéo thả hoặc chọn file…'; });
+      }
+
+      // Mật độ bảng: chuyển padding nhanh
+      const tbl = document.getElementById('tblExcel');
+      document.getElementById('densityComfort')?.addEventListener('click', () => {
+        tbl?.classList.remove('table-sm');
+      });
+      document.getElementById('densityCompact')?.addEventListener('click', () => {
+        tbl?.classList.add('table-sm');
+      });
+
+      // Hàm gợi ý: căn phải các cột số theo index (sử dụng sau khi render data)
+      window.alignNumericColumns = function (tableId, numericIdx = []) {
+        const t = document.getElementById(tableId);
+        if (!t) return;
+        // thead
+        const ths = t.tHead?.rows?.[0]?.cells || [];
+        numericIdx.forEach(i => { if (ths[i]) ths[i].classList.add('num'); });
+        // tbody
+        t.tBodies[0]?.querySelectorAll('tr')?.forEach(tr => {
+          numericIdx.forEach(i => { const c = tr.children[i]; if (c) c.classList.add('num'); });
+        });
+      }
+
+      // Hàm gợi ý: sticky cột đầu (VD: STT/Họ tên) theo index
+      window.applyStickyCols = function (tableId, stickyIdx = []) {
+        try {
+          const t = document.getElementById(tableId);
+          if (!t || !Array.isArray(stickyIdx) || stickyIdx.length === 0) return;
+          const headerRow = t.tHead?.rows?.[0];
+          if (!headerRow) return; // chưa render thead
+
+          // Đợi layout xong để đo đúng width
+          requestAnimationFrame(() => {
+            let offsets = [];
+            let accum = 0;
+            stickyIdx.forEach((idx) => {
+              const headCell = headerRow.cells?.[idx] || null;
+              const width = headCell ? headCell.getBoundingClientRect().width : 0;
+              offsets.push(accum);
+              accum += (width && width > 0) ? width : 120; // fallback
+            });
+
+            // Áp dụng cho cả thead & tbody (bỏ qua an toàn khi không có cell)
+            const rows = t.querySelectorAll('thead tr, tbody tr');
+            rows.forEach((tr) => {
+              stickyIdx.forEach((idx, pos) => {
+                const cell = tr.children?.[idx] || null;
+                if (!cell) return; // tránh đọc style của null
+                cell.classList.add(pos === 0 ? 'sticky' : `sticky-${pos + 1}`);
+                cell.style.left = offsets[pos] + 'px';
+              });
+            });
+          });
+        } catch (err) {
+          console.error('applyStickyCols error:', err);
+        }
+      }
+
+      // Tooltip cho link chip (đặt data-full=\"...\") (đặt data-full="...")
+      window.applyLinkTooltip = function () {
+        document.querySelectorAll('.link-chip').forEach(el => {
+          new bootstrap.Tooltip(el, { title: el.getAttribute('data-full') || el.textContent, trigger: 'hover' });
+        });
+      }
+
+      // Toast lỗi helper
+      window.showError = function (message) {
+        const toastEl = document.getElementById('errorToast');
+        const body = document.getElementById('errorToastMessage');
+        if (toastEl && body) {
+          body.textContent = message || 'Đã có lỗi xảy ra';
+          new bootstrap.Toast(toastEl, { delay: 4000 }).show();
+        }
+      }
+
+      // Phím tắt cơ bản
+      document.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && e.key.toLowerCase() === 'u') { e.preventDefault(); document.getElementById('upload')?.click(); }
+        if (e.ctrlKey && e.key.toLowerCase() === 's') { e.preventDefault(); document.getElementById('import')?.click(); }
+        if (e.key === 'Escape') { const modal = bootstrap.Modal.getInstance(document.getElementById('uploadHieuSuat_Modal')); modal?.hide(); }
+      });
+
+      // (Tuỳ chọn) Demo mở modal khi tải trang để bạn xem layout – có thể xoá
+      // const demo = new bootstrap.Modal('#uploadHieuSuat_Modal'); demo.show();
+      // Hook tính sticky sau khi modal hiện & sau khi bạn render bảng
+      const modalEl = document.getElementById('uploadHieuSuat_Modal');
+      if (modalEl) {
+        const setToastTop = () => {
+          const header = modalEl.querySelector('.border-bottom.bg-white');
+          const container = modalEl.querySelector('.toast-container');
+          if (container) {
+            const h = header ? header.offsetHeight : 0;
+            container.style.setProperty('--hs-toast-top', (h + 8) + 'px');
+          }
+        };
+        modalEl.addEventListener('shown.bs.modal', () => {
+          setToastTop();
+          if (Array.isArray(window.__stickyIdx) && window.__stickyIdx.length) {
+            setTimeout(() => window.applyStickyCols('tblExcel', window.__stickyIdx), 0);
+          }
+          // Khởi tạo Column Visibility sau khi bảng đã render
+          setTimeout(() => window.initColumnVisibility && window.initColumnVisibility('tblExcel'), 0);
+        });
+        window.addEventListener('resize', setToastTop);
+      }
+
+      // --- Column Visibility (Hiển thị cột) ---
+      (function () {
+        const KEY = 'hs_col_vis';
+        const scope = '#uploadHieuSuat_Modal';
+        const q = sel => document.querySelector(sel);
+        const qa = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+        function getState() {
+          try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { return {}; }
+        }
+        function saveState(state) { localStorage.setItem(KEY, JSON.stringify(state)); }
+
+        function applyColumnVisibility(tableId) {
+          const t = q(`${scope} #${tableId}`);
+          if (!t) return;
+          const state = (getState()[tableId]) || {};
+          qa('tr', t).forEach(tr => {
+            qa(':scope > *', tr).forEach((cell, i) => {
+              const visible = state[i] !== false; // mặc định hiển thị
+              cell.style.display = visible ? '' : 'none';
+            });
+          });
+        }
+
+        function buildControls(tableId) {
+          const t = q(`${scope} #${tableId}`);
+          const box = q(`${scope} #columnVisibility`);
+          if (!t || !box) return;
+          const ths = t.tHead?.rows?.[0]?.cells || [];
+          const saved = (getState()[tableId]) || {};
+          box.innerHTML = '';
+
+          // Row: hành động nhanh
+          const act = document.createElement('div');
+          act.className = 'd-flex justify-content-between align-items-center mb-1';
+          act.innerHTML = `<button type="button" class="btn btn-light btn-sm" id="colSelectAll">Hiển thị hết</button>
+                           <button type="button" class="btn btn-light btn-sm" id="colHideAll">Ẩn hết</button>`;
+          box.appendChild(act);
+
+          qa(':scope > #colSelectAll, :scope > #colHideAll', act).forEach(btn => {
+            btn.addEventListener('click', (e) => {
+              const state = getState();
+              state[tableId] = state[tableId] || {};
+              const show = e.target.id === 'colSelectAll';
+              for (let i = 0; i < ths.length; i++) { state[tableId][i] = show; }
+              saveState(state);
+              applyColumnVisibility(tableId);
+              // tick checkboxes
+              qa('input[type="checkbox"][data-col]', box).forEach(cb => { cb.checked = show; });
+            });
+          });
+
+          // Checklist theo thead
+          qa(':scope > *', t.tHead?.rows?.[0] || document).forEach(() => { }); // no-op để chắc chắn tHead tồn tại
+          for (let i = 0; i < ths.length; i++) {
+            const name = (ths[i].textContent || '').trim() || `Cột ${i + 1}`;
+            const wrap = document.createElement('label');
+            wrap.className = 'd-flex align-items-center gap-2';
+            wrap.innerHTML = `<input type="checkbox" class="form-check-input m-0" data-col="${i}" ${saved[i] === false ? '' : 'checked'} />
+                              <span class="small">${name}</span>`;
+            const cb = wrap.querySelector('input');
+            cb.addEventListener('change', () => {
+              const state = getState();
+              state[tableId] = state[tableId] || {};
+              state[tableId][i] = cb.checked; // true=show, false=hide
+              saveState(state);
+              applyColumnVisibility(tableId);
+            });
+            box.appendChild(wrap);
+          }
+        }
+
+        function observeHead(tableId) {
+          const t = q(`${scope} #${tableId}`);
+          const thead = t?.tHead;
+          if (!thead) return;
+          const obs = new MutationObserver(() => {
+            buildControls(tableId);
+            applyColumnVisibility(tableId);
+          });
+          obs.observe(thead, { childList: true, subtree: true });
+        }
+
+        window.initColumnVisibility = function (tableId) {
+          buildControls(tableId);
+          applyColumnVisibility(tableId);
+          observeHead(tableId);
+        }
+      })();
+
+      // --- Preview row counter (đếm số dòng) ---
+      function __updatePreviewMeta(opts = { visibleOnly: false }) {
+        try {
+          const badge = document.getElementById('previewMeta');
+          const tbody = document.querySelector('#uploadHieuSuat_Modal #tblExcel tbody');
+          if (!badge || !tbody) return;
+          let rows = 0;
+          if (opts.visibleOnly) {
+            rows = Array.from(tbody.rows).filter(r => r && !r.classList.contains('d-none') && r.offsetParent !== null).length;
+          } else {
+            rows = tbody.rows.length;
+          }
+          badge.textContent = `${rows} dòng`;
+        } catch (e) { console.warn('updatePreviewMeta error', e); }
+      }
+      window.updatePreviewMeta = __updatePreviewMeta;
+
+      // Theo dõi mọi thay đổi trong tbody để tự cập nhật số dòng
+      const __tbody = document.querySelector('#uploadHieuSuat_Modal #tblExcel tbody');
+      if (__tbody) {
+        const __obs = new MutationObserver(() => __updatePreviewMeta());
+        __obs.observe(__tbody, { childList: true, subtree: false, attributes: true, attributeFilter: ['class', 'style'] });
+      }
+    })();
+  </script>
+
+  <!-- Gợi ý tích hợp: Giữ nguyên các hàm JS sẵn có của bạn
+       modal_UpDataChiTiet_3_LoadFile()
+       modal_UpDataChiTiet_3_ImportData()
+       modal_khung_3_Reload()
+       modal_khung_3_ShowModal()
+       pg_uploadHieuSuat_Reset()
+  -->
+</body>
+
+</html>

@@ -1,0 +1,966 @@
+<!-- Modal Upload Nhiều File -->
+<div class="modal fade" id="uploadMultipleModal" tabindex="-1" aria-labelledby="uploadMultipleModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable" style="max-width: 95%;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="uploadMultipleModalLabel">Upload Nhiều File Hiệu Suất</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="container-fluid">
+                    <!-- Dropdown chọn Cơ chế (chung cho tất cả file) -->
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="uploadMultiple_coChe" class="form-label">Cơ chế <span
+                                    class="text-danger">*</span></label>
+                            <select id="uploadMultiple_coChe" class="form-select">
+                                <option value="">-- Chọn cơ chế --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="uploadMultiple_khoi" class="form-label">Khối <span
+                                    class="text-danger">*</span></label>
+                            <select id="uploadMultiple_khoi" class="form-select">
+                                <option value="">-- Chọn khối --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button type="button" class="btn btn-primary" onclick="uploadMultiple_addRow()">
+                                <i class="bi bi-plus-circle"></i> Thêm dòng
+                            </button>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <!-- Container chứa các dòng upload -->
+                    <div id="uploadMultiple_container" class="p-3">
+                        <!-- Các dòng upload sẽ được thêm vào đây -->
+                    </div>
+
+                    <!-- Thông tin tổng hợp -->
+                    <div class="mt-3">
+                        <div class="alert alert-info">
+                            <strong>Tổng số file:</strong> <span id="uploadMultiple_totalFiles">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-success" onclick="uploadMultiple_saveAll_v2()">
+                    <i class="bi bi-save"></i> Lưu tất cả file
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Biến lưu trữ dữ liệu các file đã chọn
+    let uploadMultiple_filesData = [];
+    let uploadMultiple_rowCounter = 0;
+
+    /**
+     * Khởi tạo modal - load dropdown Cơ chế và Khối
+     */
+    function uploadMultiple_init() {
+        let pending = 3;
+        const checkDone = () => {
+            pending--;
+            if (pending <= 0) {
+                $('#spinnerModal').modal('hide');
+                $('#uploadMultipleModal').modal('show');
+            }
+        };
+
+        // Load dropdown Cơ chế
+        google.script.run
+            .withSuccessHandler(function (data) {
+                const select = document.getElementById('uploadMultiple_coChe');
+                select.innerHTML = '<option value="">-- Chọn cơ chế --</option>';
+                data.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item;
+                    option.textContent = item;
+                    select.appendChild(option);
+                });
+
+                // Khởi tạo Select2 cho Cơ chế
+                $('#uploadMultiple_coChe').select2({
+                    dropdownParent: $('#uploadMultipleModal'),
+                    placeholder: '-- Chọn cơ chế --',
+                    allowClear: true,
+                    width: '100%'
+                });
+                checkDone();
+            })
+            .getDropdownList("HieuSuat!A2:A");
+
+        // Load dropdown Khối
+        google.script.run
+            .withSuccessHandler(function (data) {
+                const select = document.getElementById('uploadMultiple_khoi');
+                select.innerHTML = '<option value="">-- Chọn khối --</option>';
+                data.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item;
+                    option.textContent = item;
+                    select.appendChild(option);
+                });
+
+                // Khởi tạo Select2 cho Khối
+                $('#uploadMultiple_khoi').select2({
+                    dropdownParent: $('#uploadMultipleModal'),
+                    placeholder: '-- Chọn khối --',
+                    allowClear: true,
+                    width: '100%'
+                });
+                checkDone();
+            })
+            .getDropdownList("Master!D2:D");
+
+        // Thêm dòng đầu tiên
+        uploadMultiple_addRow(checkDone);
+    }
+
+    /**
+     * Thêm một dòng upload mới
+     */
+    function uploadMultiple_addRow(onDone) {
+        uploadMultiple_rowCounter++;
+        const rowId = `uploadMultiple_row_${uploadMultiple_rowCounter}`;
+
+        const container = document.getElementById('uploadMultiple_container');
+
+        const rowDiv = document.createElement('div');
+        rowDiv.className = 'card mb-3';
+        rowDiv.id = rowId;
+        rowDiv.innerHTML = `
+            <div class="card-body">
+                <div class="row align-items-end">
+                    <div class="col-md-1">
+                        <label class="form-label">STT</label>
+                        <div class="fw-bold fs-5">${uploadMultiple_rowCounter}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="${rowId}_file" class="form-label">Chọn file Excel <span class="text-danger">*</span></label>
+                        <input type="file" class="form-control" id="${rowId}_file" 
+                               accept=".xls,.xlsx" 
+                               onchange="uploadMultiple_handleFileSelect('${rowId}')">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="${rowId}_kyNghiemThu" class="form-label">Kỳ nghiệm thu <span class="text-danger">*</span></label>
+                        <select class="form-select" id="${rowId}_kyNghiemThu">
+                            <option value="">-- Chọn kỳ nghiệm thu --</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="btn btn-secondary w-100" id="${rowId}_status" style="pointer-events: none;">Chưa chọn file</div>
+                    </div>
+                    <div class="col-md-1 text-center">
+                        <button type="button" class="btn btn-danger w-100" onclick="uploadMultiple_removeRow('${rowId}')" title="Xóa dòng này">
+                            <i class="bi bi-trash"></i> Xóa
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        container.appendChild(rowDiv);
+
+        // Load dropdown Kỳ nghiệm thu cho dòng mới
+        google.script.run
+            .withSuccessHandler(function (data) {
+                const select = document.getElementById(`${rowId}_kyNghiemThu`);
+                select.innerHTML = '<option value="">-- Chọn kỳ nghiệm thu --</option>';
+                data.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item;
+                    option.textContent = item;
+                    select.appendChild(option);
+                });
+
+                // Khởi tạo Select2 cho Kỳ nghiệm thu
+                $(`#${rowId}_kyNghiemThu`).select2({
+                    dropdownParent: $('#uploadMultipleModal'),
+                    placeholder: '-- Chọn kỳ nghiệm thu --',
+                    allowClear: true,
+                    width: '100%'
+                });
+                if (onDone && typeof onDone === 'function') onDone();
+            })
+            .pg_general_1_layDsKyNghiemThu();
+
+        uploadMultiple_updateTotalFiles();
+    }
+
+    /**
+     * Xóa một dòng upload
+     */
+    function uploadMultiple_removeRow(rowId) {
+        const row = document.getElementById(rowId);
+        if (row) {
+            // Xóa dữ liệu file tương ứng
+            uploadMultiple_filesData = uploadMultiple_filesData.filter(item => item.rowId !== rowId);
+            row.remove();
+            uploadMultiple_updateTotalFiles();
+        }
+    }
+
+    /**
+     * Xử lý khi người dùng chọn file
+     */
+    function uploadMultiple_handleFileSelect(rowId) {
+        const fileInput = document.getElementById(`${rowId}_file`);
+        const statusBadge = document.getElementById(`${rowId}_status`);
+
+        // Reset trạng thái badge
+        if (statusBadge) {
+            statusBadge.onclick = null;
+            statusBadge.style.pointerEvents = 'none';
+        }
+
+        if (!fileInput.files || fileInput.files.length === 0) {
+            statusBadge.className = 'btn btn-secondary w-100';
+            statusBadge.textContent = 'Chưa chọn file';
+            return;
+        }
+
+        const file = fileInput.files[0];
+        // Regex: cho phép chữ, số, khoảng trắng, dấu gạch dưới, gạch ngang, dấu chấm - và phải kết thúc bằng .xls hoặc .xlsx
+        const regex = /^[a-zA-Z0-9\s._\-]+\.(xls|xlsx)$/i;
+
+        if (!regex.test(file.name)) {
+            pg_general_3_showToast('Tên file không hợp lệ. Không chứa ký tự đặc biệt như (), "", *, #, !, @ ...', 'warning');
+            statusBadge.className = 'btn btn-danger w-100';
+            statusBadge.textContent = 'File không hợp lệ';
+            fileInput.value = '';
+            return;
+        }
+
+        // Đọc file
+        statusBadge.className = 'btn btn-warning w-100';
+        statusBadge.textContent = 'Đang đọc file...';
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+
+                // Lưu thông tin file
+                const fileData = {
+                    rowId: rowId,
+                    fileName: file.name,
+                    workbook: workbook,
+                    arrayBuffer: e.target.result
+                };
+
+                // Xóa dữ liệu cũ của dòng này (nếu có)
+                uploadMultiple_filesData = uploadMultiple_filesData.filter(item => item.rowId !== rowId);
+                // Thêm dữ liệu mới
+                uploadMultiple_filesData.push(fileData);
+
+                statusBadge.className = 'btn btn-success w-100';
+                statusBadge.innerHTML = '<i class="bi bi-check-circle-fill"></i> OK';
+
+                uploadMultiple_updateTotalFiles();
+            } catch (error) {
+                statusBadge.className = 'btn btn-danger w-100';
+                statusBadge.textContent = 'Lỗi đọc file';
+                pg_general_3_showToast('Lỗi khi đọc file: ' + error.message, 'danger');
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    /**
+     * Cập nhật số lượng file đã chọn
+     */
+    function uploadMultiple_updateTotalFiles() {
+        const totalSpan = document.getElementById('uploadMultiple_totalFiles');
+        if (totalSpan) {
+            totalSpan.textContent = uploadMultiple_filesData.length;
+        }
+    }
+
+    /**
+     * Lưu tất cả các file vào database
+     */
+    /**
+     * Lưu tất cả các file vào database
+     */
+    function uploadMultiple_saveAll() {
+        // Kiểm tra Cơ chế và Khối
+        const coChe = document.getElementById('uploadMultiple_coChe').value;
+        const khoi = document.getElementById('uploadMultiple_khoi').value;
+
+        if (!coChe) {
+            pg_general_3_showToast('Vui lòng chọn Cơ chế', 'danger');
+            return;
+        }
+
+        if (!khoi) {
+            pg_general_3_showToast('Vui lòng chọn Khối', 'danger');
+            return;
+        }
+
+        // Kiểm tra có file nào được chọn không
+        if (uploadMultiple_filesData.length === 0) {
+            pg_general_3_showToast('Vui lòng chọn ít nhất một file', 'danger');
+            return;
+        }
+
+        // Lọc các file chưa được upload thành công
+        const pendingFiles = uploadMultiple_filesData.filter(item => !item.uploaded);
+
+        if (pendingFiles.length === 0) {
+            pg_general_3_showToast('Tất cả các file đã được upload thành công.', 'success');
+            return;
+        }
+
+        // Kiểm tra từng dòng
+        let hasError = false;
+        const processQueue = [];
+
+        pendingFiles.forEach(fileData => {
+            const rowId = fileData.rowId;
+            const kyNghiemThuSelect = document.getElementById(`${rowId}_kyNghiemThu`);
+
+            if (!kyNghiemThuSelect || !kyNghiemThuSelect.value) {
+                pg_general_3_showToast(`Vui lòng chọn Kỳ nghiệm thu cho file: ${fileData.fileName}`, 'danger');
+                hasError = true;
+                return;
+            }
+
+            processQueue.push({
+                rowId: rowId,
+                fileName: fileData.fileName,
+                arrayBuffer: fileData.arrayBuffer,
+                kyNghiemThu: kyNghiemThuSelect.value,
+                coChe: coChe,
+                khoi: khoi
+            });
+        });
+
+        if (hasError) {
+            return;
+        }
+
+        // Xác nhận trước khi upload
+        Swal.fire({
+            title: 'Xác nhận upload',
+            html: `Bạn có chắc muốn upload <strong>${processQueue.length} file</strong> vào database?<br><br>
+                   <strong>Cơ chế:</strong> ${coChe}<br>
+                   <strong>Khối:</strong> ${khoi}`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Xác nhận',
+            cancelButtonText: 'Hủy'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                uploadMultiple_processFiles(processQueue);
+            }
+        });
+    }
+
+    /**
+     * Xử lý và upload từng file
+     */
+    function uploadMultiple_processFiles(processQueue) {
+        // const spinnerModal = new bootstrap.Modal(document.getElementById('spinnerModal'));
+        // spinnerModal.show();
+        // Không dùng spinner toàn màn hình nữa để user theo dõi tiến trình từng dòng
+
+        // Disable nút Lưu và các nút khác để tránh xung đột
+        const saveButton = document.querySelector('#uploadMultipleModal .btn-success');
+        if (saveButton) {
+            saveButton.disabled = true;
+            saveButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Đang xử lý...';
+        }
+
+        let successCount = 0;
+        let errorCount = 0;
+        let errorMessages = [];
+
+        // Hàm xử lý từng file tuần tự
+        function processNextFile(index) {
+            if (index >= processQueue.length) {
+                // Hoàn thành tất cả
+                // spinnerModal.hide();
+
+                // Enable lại nút Lưu
+                if (saveButton) {
+                    saveButton.disabled = false;
+                    saveButton.innerHTML = '<i class="bi bi-save"></i> Lưu tất cả file';
+                }
+
+                if (errorCount === 0) {
+                    Swal.fire({
+                        title: 'Thành công!',
+                        html: `Đã upload thành công tất cả <strong>${successCount}</strong> file.`,
+                        icon: 'success'
+                    }).then(() => {
+                        // Refresh dữ liệu nền (nếu cần)
+                        pg_general_3_XemHieuSuatChiTiet();
+                        // KHÔNG đóng modal theo yêu cầu
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Hoàn thành',
+                        html: `Thành công: <strong>${successCount}</strong><br>
+                               Lỗi: <strong>${errorCount}</strong><br><br>
+                               Vui lòng kiểm tra các dòng báo lỗi (màu đỏ).`,
+                        icon: 'warning'
+                    }).then(() => {
+                        pg_general_3_XemHieuSuatChiTiet();
+                    });
+                }
+                return;
+            }
+
+            const item = processQueue[index];
+            const rowId = item.rowId;
+            const statusBadge = document.getElementById(`${rowId}_status`);
+
+            // Cập nhật trạng thái đang chạy
+            if (statusBadge) {
+                statusBadge.className = 'btn btn-warning w-100';
+                statusBadge.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Đang lưu...';
+            }
+
+            // Xử lý file
+            uploadMultiple_processOneFile(item, function (success, error) {
+                if (success) {
+                    successCount++;
+
+                    // Mark as uploaded in data
+                    const fileData = uploadMultiple_filesData.find(f => f.rowId === rowId);
+                    if (fileData) {
+                        fileData.uploaded = true;
+                    }
+
+                    // Update UI Success
+                    if (statusBadge) {
+                        statusBadge.className = 'btn btn-success w-100';
+                        statusBadge.innerHTML = '<i class="bi bi-check-lg"></i> Đã lưu';
+                        statusBadge.title = 'Đã upload thành công';
+                        statusBadge.onclick = null; // Remove error click handler if any
+                    }
+
+                    // Disable inputs for this row
+                    const row = document.getElementById(rowId);
+                    if (row) {
+                        const inputs = row.querySelectorAll('input, select, button.btn-danger');
+                        inputs.forEach(inp => inp.disabled = true);
+                        // Optional: visual dimming
+                        row.style.opacity = '0.8';
+                    }
+
+                } else {
+                    errorCount++;
+                    errorMessages.push(`<strong>${item.fileName}:</strong> ${error}`);
+
+                    // Update UI Error
+                    if (statusBadge) {
+                        statusBadge.className = 'btn btn-danger w-100';
+                        statusBadge.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i> Lỗi';
+                        statusBadge.title = 'Click để xem chi tiết lỗi';
+                        statusBadge.onclick = function () {
+                            Swal.fire({
+                                title: 'Chi tiết lỗi',
+                                text: error,
+                                icon: 'error'
+                            });
+                        };
+                        // Enable pointer events for click
+                        statusBadge.style.pointerEvents = 'auto';
+                    }
+                }
+
+                // Xử lý file tiếp theo
+                processNextFile(index + 1);
+            });
+        }
+
+        // Bắt đầu xử lý từ file đầu tiên
+        processNextFile(0);
+    }
+
+    /**
+     * Xử lý một file đơn lẻ
+     */
+    function uploadMultiple_processOneFile(item, callback) {
+        const { arrayBuffer, coChe, kyNghiemThu, khoi, fileName } = item;
+
+        try {
+            // Đọc workbook
+            const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+            const firstSheet = workbook.SheetNames[0];
+
+            // Đọc dữ liệu dạng mảng 2 chiều
+            const rawData = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], {
+                header: 1,
+                defval: "",
+                blankrows: false
+            });
+
+            if (!rawData || rawData.length < 2) {
+                callback(false, 'File Excel không có dữ liệu');
+                return;
+            }
+
+            // Lấy headers và data
+            const excelHeaders = rawData[0];
+            const totalColumns = excelHeaders.length;
+
+            // Mapping cột cố định (giống như trong modal_UpDataChiTiet_3.html)
+            const fixedHeadersMapping = [
+                "Mã nhân sự", "Họ và tên", "Team", "Tên cơ chế", "Loại cơ chế",
+                "Nhóm công việc", "Tên job", "Độ khó", "Diễn giải công việc",
+                "Kết quả thực hiện", "Link kết quả", "Số lượng", "Khối lượng công việc",
+                "Tỷ lệ tham gia", "Chất lượng hoàn thành", "Tỷ lệ hưởng hiệu suất",
+                "Ghi chú", "Win-Fail", "Nội bộ - Khách hàng", "Dự án"
+            ];
+
+            // Tìm số cột mở rộng
+            const numExpandColumns = Math.max(0, totalColumns - fixedHeadersMapping.length);
+
+            // Chuyển đổi raw data thành object array
+            const excelRows = [];
+            for (let i = 1; i < rawData.length; i++) {
+                const rowData = {};
+                const rowArray = rawData[i];
+
+                // Map dữ liệu vào các cột cố định
+                fixedHeadersMapping.forEach((header, idx) => {
+                    rowData[header] = rowArray[idx] !== undefined ? rowArray[idx] : "";
+                });
+
+                // Map dữ liệu vào các cột mở rộng
+                const expandData = [];
+                for (let j = 0; j < numExpandColumns; j++) {
+                    const colIndex = fixedHeadersMapping.length + j;
+                    expandData.push(rowArray[colIndex] !== undefined ? rowArray[colIndex] : "");
+                }
+
+                // Gộp các cột mở rộng thành 1 chuỗi
+                if (expandData.length > 0) {
+                    rowData["Mở rộng"] = expandData.join("||");
+                } else {
+                    rowData["Mở rộng"] = "";
+                }
+
+                excelRows.push(rowData);
+            }
+
+            // Gọi server để xử lý và lưu dữ liệu
+            google.script.run
+                .withSuccessHandler(function (dataFromServer) {
+                    // Xử lý dữ liệu và validate
+                    uploadMultiple_validateAndSave(excelRows, dataFromServer, coChe, kyNghiemThu, khoi, fileName, callback);
+                })
+                .withFailureHandler(function (error) {
+                    callback(false, 'Lỗi khi lấy dữ liệu từ server: ' + error.message);
+                })
+                .pg_general_1_KhungCoChe(coChe, kyNghiemThu);
+
+        } catch (error) {
+            callback(false, 'Lỗi khi xử lý file: ' + error.message);
+        }
+    }
+
+    /**
+     * Validate và lưu dữ liệu
+     */
+    function uploadMultiple_validateAndSave(excelRows, dataFromServer, coChe, kyNghiemThu, khoi, fileName, callback) {
+        try {
+            if (!Array.isArray(dataFromServer) || dataFromServer.length === 0) {
+                callback(false, 'Không nhận được dữ liệu hợp lệ từ server');
+                return;
+            }
+
+            dataFromServer = dataFromServer.filter(item => Array.isArray(item) && item.length >= 9);
+
+            // Tạo dataMap
+            const dataMap = new Map();
+            dataFromServer.forEach(item => {
+                // Key format: Tên job | Chất lượng | Độ khó | Nhóm công việc
+                // Convert to lowercase for case-insensitive comparison
+                const key = `${(item[3] || "").trim().toLowerCase()}|${(item[8] || "").trim().toLowerCase()}|${(item[4] || "").trim().toLowerCase()}|${(item[2] || "").trim().toLowerCase()}`;
+                let convertedItem = item.map(value =>
+                    (typeof value === "string" && value.includes(","))
+                        ? parseFloat(value.replace(/\./g, '').replace(',', '.'))
+                        : value
+                );
+                dataMap.set(key, convertedItem);
+            });
+
+            // Validate dữ liệu
+            let errorRows = [];
+            let missingIdRows = [];
+            const requiredFields = ["Mã nhân sự", "Team", "Tên cơ chế", "Loại cơ chế", "Nhóm công việc", "Tên job"];
+
+            excelRows.forEach((row, index) => {
+                const tenCoChe = row["Tên cơ chế"] ? row["Tên cơ chế"].trim() : "";
+
+                if (tenCoChe !== coChe) {
+                    errorRows.push(`Dòng ${index + 2} không khớp Tên cơ chế`);
+                }
+
+                requiredFields.forEach(field => {
+                    if (!row[field] || row[field].toString().trim() === "") {
+                        errorRows.push(`Dòng ${index + 2} thiếu dữ liệu ở cột '${field}'`);
+                    }
+                });
+            });
+
+            if (errorRows.length > 0) {
+                callback(false, errorRows.join('; '));
+                return;
+            }
+
+            // Kiểm tra mã nhân sự
+            if (!pg_general_3_cachedDSNS || pg_general_3_cachedDSNS.length === 0) {
+                callback(false, 'Không có danh sách nhân sự để kiểm tra');
+                return;
+            }
+
+            const dsNhanSuSet = new Set(pg_general_3_cachedDSNS.map(item => item.trim()));
+            let nhanSuErrors = [];
+
+            excelRows.forEach((row, index) => {
+                let maNhanSu = row["Mã nhân sự"] ? String(row["Mã nhân sự"]).trim() : "";
+                if (!dsNhanSuSet.has(maNhanSu)) {
+                    nhanSuErrors.push(`Dòng ${index + 2}: Mã nhân sự ${maNhanSu} không tồn tại`);
+                }
+            });
+
+            if (nhanSuErrors.length > 0) {
+                callback(false, nhanSuErrors.join('; '));
+                return;
+            }
+
+            // Xử lý dữ liệu và tính toán
+            const processedData = [];
+            excelRows.forEach((row, index) => {
+                // Create lookup key with lowercase values
+                const key = `${(row["Tên job"] || "").trim().toLowerCase()}|${(row["Chất lượng hoàn thành"] || "").trim().toLowerCase()}|${(row["Độ khó"] || "").trim().toLowerCase()}|${(row["Nhóm công việc"] || "").trim().toLowerCase()}`;
+                const matchedData = dataMap.get(key);
+
+                const idJob = matchedData ? matchedData[0] : "Không có ID job";
+                const unitPrice = matchedData ? parseFloat(matchedData[11]) || 0 : 0;
+
+                if (idJob === "Không có ID job") {
+                    missingIdRows.push(`Dòng ${index + 2}`);
+                }
+
+                const soLuong = parseSafeNumber(row["Số lượng"]) || 1;
+                const tyLeThamGia = parsePercentageRate(row["Tỷ lệ tham gia"]);
+                const tyLeHuongHieuSuat = parsePercentageRate(row["Tỷ lệ hưởng hiệu suất"]);
+
+                const hieuSuat = unitPrice * soLuong * tyLeThamGia * tyLeHuongHieuSuat;
+
+                // Tạo object dữ liệu để lưu
+                const dataRow = {
+                    "STT": index + 1,
+                    "Mã nhân sự": row["Mã nhân sự"],
+                    "Họ và tên": row["Họ và tên"],
+                    "Team": row["Team"],
+                    "Tên cơ chế": row["Tên cơ chế"],
+                    "Loại cơ chế": row["Loại cơ chế"],
+                    "ID Job": idJob,
+                    "Nhóm công việc": row["Nhóm công việc"],
+                    "Tên job": row["Tên job"],
+                    "Độ khó": row["Độ khó"],
+                    "Diễn giải công việc": row["Diễn giải công việc"],
+                    "Kết quả thực hiện": row["Kết quả thực hiện"],
+                    "Link kết quả": row["Link kết quả"],
+                    "Số lượng": soLuong,
+                    "Khối lượng công việc": matchedData ? parseFloat(matchedData[10]) || 0 : 0,
+                    "Tỷ lệ tham gia": tyLeThamGia,
+                    "Chất lượng hoàn thành": row["Chất lượng hoàn thành"],
+                    "Tỷ lệ hưởng hiệu suất": tyLeHuongHieuSuat,
+                    "Đơn giá": unitPrice,
+                    "Hiệu suất": hieuSuat,
+                    "Ghi chú": row["Ghi chú"],
+                    "Win-Fail": row["Win-Fail"],
+                    "Nội bộ - Khách hàng": row["Nội bộ - Khách hàng"],
+                    "Dự án": row["Dự án"],
+                    "Mở rộng": row["Mở rộng"] || ""
+                };
+
+                processedData.push(dataRow);
+            });
+
+            if (missingIdRows.length > 0) {
+                callback(false, `Không tìm thấy ID Job ở các dòng: ${missingIdRows.join(', ')}`);
+                return;
+            }
+
+            // Gửi dữ liệu lên server để lưu
+            google.script.run
+                .withSuccessHandler(function (result) {
+                    if (result === 'Success') {
+                        callback(true, null);
+                    } else {
+                        callback(false, result);
+                    }
+                })
+                .withFailureHandler(function (error) {
+                    callback(false, 'Lỗi khi lưu dữ liệu: ' + error.message);
+                })
+                .modal_UpDataChiTiet_1_GhiDataHieuSuatVaoSheet(processedData, coChe, kyNghiemThu, khoi);
+
+        } catch (error) {
+            callback(false, 'Lỗi khi validate: ' + error.message);
+        }
+    }
+
+    /**
+     * Lưu tất cả các file vào database (Version 2)
+     */
+    function uploadMultiple_saveAll_v2() {
+        // Kiểm tra Cơ chế và Khối
+        const coChe = document.getElementById('uploadMultiple_coChe').value;
+        const khoi = document.getElementById('uploadMultiple_khoi').value;
+
+        if (!coChe) {
+            pg_general_3_showToast('Vui lòng chọn Cơ chế', 'danger');
+            return;
+        }
+
+        if (!khoi) {
+            pg_general_3_showToast('Vui lòng chọn Khối', 'danger');
+            return;
+        }
+
+        // Kiểm tra có file nào được chọn không
+        if (uploadMultiple_filesData.length === 0) {
+            pg_general_3_showToast('Vui lòng chọn ít nhất một file', 'danger');
+            return;
+        }
+
+        // Lọc các file chưa được upload thành công
+        const pendingFiles = uploadMultiple_filesData.filter(item => !item.uploaded);
+
+        if (pendingFiles.length === 0) {
+            pg_general_3_showToast('Tất cả các file đã được upload thành công.', 'success');
+            return;
+        }
+
+        // Kiểm tra từng dòng
+        let hasError = false;
+        const processQueue = [];
+        const distinctKyNghiemThu = new Set();
+
+        pendingFiles.forEach(fileData => {
+            const rowId = fileData.rowId;
+            const kyNghiemThuSelect = document.getElementById(`${rowId}_kyNghiemThu`);
+
+            if (!kyNghiemThuSelect || !kyNghiemThuSelect.value) {
+                pg_general_3_showToast(`Vui lòng chọn Kỳ nghiệm thu cho file: ${fileData.fileName}`, 'danger');
+                hasError = true;
+                return;
+            }
+
+            distinctKyNghiemThu.add(kyNghiemThuSelect.value);
+
+            processQueue.push({
+                rowId: rowId,
+                fileName: fileData.fileName,
+                arrayBuffer: fileData.arrayBuffer,
+                kyNghiemThu: kyNghiemThuSelect.value,
+                coChe: coChe,
+                khoi: khoi
+            });
+        });
+
+        if (hasError) {
+            return;
+        }
+
+        // Disable save button & show loading state
+        const saveButton = document.querySelector('#uploadMultipleModal .btn-success');
+        let originalBtnContent = '<i class="bi bi-save"></i> Lưu tất cả file';
+        if (saveButton) {
+            originalBtnContent = saveButton.innerHTML;
+            saveButton.disabled = true;
+            saveButton.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Đang kiểm tra...';
+        }
+
+        // Kiểm tra dữ liệu tồn tại trên server
+        let existingKyNghiemThu = [];
+        let checksCompleted = 0;
+        const kyNghiemThuArray = Array.from(distinctKyNghiemThu);
+
+        if (kyNghiemThuArray.length === 0) {
+            confirmAndRun();
+            return;
+        }
+
+        kyNghiemThuArray.forEach(knt => {
+            google.script.run
+                .withSuccessHandler((exists) => {
+                    if (exists) existingKyNghiemThu.push(knt);
+                    checkDone();
+                })
+                .withFailureHandler(() => {
+                    checkDone();
+                })
+                .modal_UpDataChiTiet_1_CheckDataExist(coChe, knt);
+        });
+
+        function checkDone() {
+            checksCompleted++;
+            if (checksCompleted >= kyNghiemThuArray.length) {
+                // All checks done
+                if (saveButton) {
+                    saveButton.disabled = false;
+                    saveButton.innerHTML = originalBtnContent;
+                }
+
+                if (existingKyNghiemThu.length > 0) {
+                    Swal.fire({
+                        title: 'Dữ liệu đã tồn tại',
+                        html: `Tháng <strong>${existingKyNghiemThu.join(', ')}</strong> đã có dữ liệu.<br>Bạn có muốn tiếp tục lưu (ghi chèn tiếp) không?`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Tiếp tục lưu',
+                        cancelButtonText: 'Hủy'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            confirmAndRun();
+                        }
+                    });
+                } else {
+                    confirmAndRun();
+                }
+            }
+        }
+
+        function confirmAndRun() {
+            Swal.fire({
+                title: 'Xác nhận upload',
+                html: `Bạn có chắc muốn upload <strong>${processQueue.length} file</strong> vào database?<br><br>
+                       <strong>Cơ chế:</strong> ${coChe}<br>
+                       <strong>Khối:</strong> ${khoi}`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Xác nhận',
+                cancelButtonText: 'Hủy'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    uploadMultiple_processFiles(processQueue);
+                }
+            });
+        }
+    }
+
+    /**
+     * Reset modal về trạng thái ban đầu
+     */
+    function uploadMultiple_reset() {
+        // Reset data first
+        uploadMultiple_filesData = [];
+        uploadMultiple_rowCounter = 0;
+
+        // Update total before clearing DOM
+        uploadMultiple_updateTotalFiles();
+
+        // Destroy Select2 instances
+        if ($('#uploadMultiple_coChe').hasClass('select2-hidden-accessible')) {
+            $('#uploadMultiple_coChe').select2('destroy');
+        }
+        if ($('#uploadMultiple_khoi').hasClass('select2-hidden-accessible')) {
+            $('#uploadMultiple_khoi').select2('destroy');
+        }
+
+        // Destroy Select2 trong các dòng
+        $('#uploadMultiple_container select').each(function () {
+            if ($(this).hasClass('select2-hidden-accessible')) {
+                $(this).select2('destroy');
+            }
+        });
+
+        // Clear DOM elements
+        const coCheSel = document.getElementById('uploadMultiple_coChe');
+        const khoiSel = document.getElementById('uploadMultiple_khoi');
+        const container = document.getElementById('uploadMultiple_container');
+
+        if (coCheSel) coCheSel.value = '';
+        if (khoiSel) khoiSel.value = '';
+        if (container) container.innerHTML = '';
+    }
+
+    /**
+     * Mở modal
+     */
+    function uploadMultiple_show() {
+        $('#spinnerModal').modal('show');
+        uploadMultiple_reset();
+        uploadMultiple_init();
+    }
+
+    // Sự kiện khi đóng modal
+    $('#uploadMultipleModal').on('hidden.bs.modal', function () {
+        uploadMultiple_reset();
+    });
+</script>
+
+<style>
+    #uploadMultiple_container {
+        /* Custom scrollbar */
+        scrollbar-width: thin;
+        scrollbar-color: #6c757d #f8f9fa;
+    }
+
+    #uploadMultiple_container::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    #uploadMultiple_container::-webkit-scrollbar-track {
+        background: #f8f9fa;
+        border-radius: 4px;
+    }
+
+    #uploadMultiple_container::-webkit-scrollbar-thumb {
+        background: #6c757d;
+        border-radius: 4px;
+    }
+
+    #uploadMultiple_container::-webkit-scrollbar-thumb:hover {
+        background: #495057;
+    }
+
+    #uploadMultiple_container .card {
+        transition: all 0.3s ease;
+    }
+
+    #uploadMultiple_container .card:hover {
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    #uploadMultiple_container .badge {
+        font-size: 0.95em;
+        padding: 0.6em 1.2em;
+        min-width: 100px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4em;
+    }
+
+    #uploadMultiple_container .btn-danger {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.95rem;
+        white-space: nowrap;
+        min-width: 80px;
+    }
+
+    #uploadMultiple_container .btn-danger i {
+        margin-right: 0.3rem;
+    }
+</style>

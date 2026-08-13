@@ -1,0 +1,1067 @@
+<script>
+
+
+    /**NHÓM HÀM THỰC THI UPLOAD HIỆU SUẤT*/
+    function modal_UpDataChiTiet_3_LoadFile() {
+        var dropList = document.getElementById("modal_UpDataChiTiet_2_coCheUpload_DropList");
+        //if (!dropList || !dropList.value.trim()) {
+        if (!dropList || !dropList.value || !dropList.value.trim()) {
+            pg_general_3_showToast("Vui lòng chọn cơ chế upload trước khi tiếp tục.", "danger");
+            return;
+        }
+
+        var dropKyNghiemThu = document.getElementById("modal_UpDataChiTiet_2_kyNghiemThuDropDown");
+        if (!dropKyNghiemThu || !dropKyNghiemThu.value.trim()) {
+            pg_general_3_showToast("Vui lòng chọn Kỳ nghiệm thu trước khi tiếp tục.", "danger");
+            return;
+        }
+
+        var spinnerModal = new bootstrap.Modal(document.getElementById('spinnerModal'));
+        spinnerModal.show();
+
+        var strCoChe = dropList.value.trim();
+        var strKyNghiemThu = dropKyNghiemThu.value.trim();
+        var fileUpload = document.getElementById("fileUpload");
+        var regex = /^([a-zA-Z0-9\s_\\.\-:])+(\.xls|\.xlsx)$/;
+
+        //if (regex.test(fileUpload.value.toLowerCase())) {
+        if (fileUpload && fileUpload.value && regex.test(fileUpload.value.toLowerCase())) {
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                pg_uploadHieuSuat_taoLaiBang();
+                pgHieuSuatUploadHtml_ProcessAndCalculate(e.target.result, strCoChe, strKyNghiemThu);
+
+            };
+            reader.readAsArrayBuffer(fileUpload.files[0]);
+        } else {
+            pg_general_3_showToast('Lưu ý tên file upload không chứa ký tự đặc biệt như (), "", *, #, !, @ ...', "warning");
+            spinnerModal.hide();
+        }
+    }
+
+    function pgHieuSuatUploadHtml_ProcessAndCalculate(data, strCoChe, strKyNghiemThu) {
+        var spinnerModal = new bootstrap.Modal(document.getElementById('spinnerModal'));
+        spinnerModal.show();
+
+        var workbook = XLSX.read(data, { type: 'array' });
+        var firstSheet = workbook.SheetNames[0];
+
+        // 🆕 Đọc dữ liệu dạng mảng 2 chiều (bao gồm CẢ các cột rỗng)
+        var rawData = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], {
+            header: 1,  // Đọc dạng array, không dùng header làm key
+            defval: "", // Giá trị mặc định cho cell rỗng
+            blankrows: false // Bỏ qua dòng trống
+        });
+
+        console.log("📊 Raw data từ Excel:", rawData);
+        console.log(`📏 Số cột thực tế: ${rawData[0] ? rawData[0].length : 0}`);
+
+        if (!rawData || rawData.length < 2) {
+            Swal.fire("Lỗi", "⚠️ File Excel không có dữ liệu!", "error");
+            spinnerModal.hide();
+            return;
+        }
+
+        // Lấy dòng header (dòng đầu tiên)
+        var excelHeaders = rawData[0];
+        var totalColumns = excelHeaders.length;
+
+        console.log("📋 Headers từ Excel:", excelHeaders);
+        console.log(`📏 Tổng số cột: ${totalColumns}`);
+
+        // 🆕 Các cột cố định - KHỚP CHÍNH XÁC với thứ tự trong Excel
+        // Dựa trên log: ['Mã nhân sự', 'Họ và tên', 'Team', 'Tên cơ chế', 'Loại cơ chế', 
+        //               'Nhóm công việc', 'Tên job', 'Độ khó', 'Diễn giải công việc', 'Kết quả thực hiện', 
+        //               'Link kết quả', 'Số lượng', 'Khối lượng công việc', 'Tỷ lệ tham gia', 
+        //               'Chất lượng hoàn thành', 'Tỷ lệ hưởng hiệu suất', 'Ghi chú', 'Win-Fail', 
+        //               'Nội bộ - Khách hàng', 'Dự án']
+        var fixedHeadersMapping = [
+            "Mã nhân sự",           // 0
+            "Họ và tên",            // 1
+            "Team",                 // 2
+            "Tên cơ chế",           // 3
+            "Loại cơ chế",          // 4
+            "Nhóm công việc",       // 5
+            "Tên job",              // 6
+            "Độ khó",               // 7
+            "Diễn giải công việc",  // 8
+            "Kết quả thực hiện",    // 9
+            "Link kết quả",         // 10
+            "Số lượng",             // 11
+            "Khối lượng công việc", // 12
+            "Tỷ lệ tham gia",       // 13
+            "Chất lượng hoàn thành",// 14
+            "Tỷ lệ hưởng hiệu suất",// 15
+            "Ghi chú",              // 16
+            "Win-Fail",             // 17
+            "Nội bộ - Khách hàng",  // 18
+            "Dự án"                 // 19
+        ];
+
+        // 🆕 Tìm số cột mở rộng (tổng cột - số cột cố định)
+        var numExpandColumns = Math.max(0, totalColumns - fixedHeadersMapping.length);
+
+        console.log(`🔢 Số cột cố định: ${fixedHeadersMapping.length}`);
+        console.log(`🔢 Số cột mở rộng: ${numExpandColumns}`);
+
+        // 🆕 Tạo headers động cho cột mở rộng
+        var dynamicHeaders = [];
+        for (var i = 1; i <= numExpandColumns; i++) {
+            dynamicHeaders.push(`Mở rộng ${i}`);
+        }
+
+        // 🆕 Kết hợp headers hiển thị: STT + cố định + CÁC CỘT TÍNH TOÁN + động
+        // Các cột tính toán: ID Job, Đơn giá, Hiệu suất
+        var headers = ["STT", "Mã nhân sự", "Họ và tên", "Team", "Tên cơ chế", "Loại cơ chế",
+            "ID Job",  // ← Tính toán từ database
+            "Nhóm công việc", "Tên job", "Độ khó", "Diễn giải công việc",
+            "Kết quả thực hiện", "Link kết quả", "Số lượng", "Khối lượng công việc",
+            "Tỷ lệ tham gia", "Chất lượng hoàn thành", "Tỷ lệ hưởng hiệu suất",
+            "Đơn giá",  // ← Tính toán từ database
+            "Hiệu suất", // ← Tính toán
+            "Ghi chú", "Win-Fail", "Nội bộ - Khách hàng", "Dự án"]
+            .concat(dynamicHeaders);
+
+        console.log(`📋 Headers hiển thị:`, headers);
+
+        // 🆕 Chuyển đổi raw data thành object array
+        var excelRows = [];
+        for (var i = 1; i < rawData.length; i++) { // Bỏ qua dòng header
+            var rowData = {};
+            var rowArray = rawData[i];
+
+            // Map dữ liệu vào các cột cố định
+            fixedHeadersMapping.forEach((header, idx) => {
+                rowData[header] = rowArray[idx] !== undefined ? rowArray[idx] : "";
+            });
+
+            // 🆕 Map dữ liệu vào các cột mở rộng
+            for (var j = 0; j < numExpandColumns; j++) {
+                var colIndex = fixedHeadersMapping.length + j;
+                var expandKey = `Mở rộng ${j + 1}`;
+                rowData[expandKey] = rowArray[colIndex] !== undefined ? rowArray[colIndex] : "";
+            }
+
+            excelRows.push(rowData);
+        }
+
+        console.log(`✅ Đã chuyển đổi ${excelRows.length} dòng dữ liệu`);
+        console.log("📝 Mẫu dòng đầu tiên:", excelRows[0]);
+
+        // Lưu danh sách tên cột mở rộng gốc (để dùng khi lưu dữ liệu)
+        var extraColumns = dynamicHeaders.slice(); // Copy array
+
+        var table = document.createElement("table");
+        table.className = "table table-bordered table-striped table-hover";
+        table.id = "tblExcel";
+
+        var dvExcelElement = document.getElementById("dvExcel");
+        if (!dvExcelElement) {
+            console.error("Element dvExcel không tồn tại!");
+            spinnerModal.hide();
+            return;
+        }
+        dvExcelElement.innerHTML = "";
+
+        google.script.run.withSuccessHandler(function (dataFromServer) {
+            if (!Array.isArray(dataFromServer) || dataFromServer.length === 0) {
+                Swal.fire("Lỗi", "⚠️ Không nhận được dữ liệu hợp lệ từ server.", "error");
+                spinnerModal.hide();
+                return;
+            }
+            dataFromServer = dataFromServer.filter(item => Array.isArray(item) && item.length >= 9);
+            //console.log("Dữ liệu từ server:", dataFromServer);
+
+            var dataMap = new Map();
+            dataFromServer.forEach(item => {
+                // Key format: Tên job | Chất lượng | Độ khó | Nhóm công việc
+                // Convert to lowercase for case-insensitive comparison
+                var key = `${(item[3] || "").trim().toLowerCase()}|${(item[8] || "").trim().toLowerCase()}|${(item[4] || "").trim().toLowerCase()}|${(item[2] || "").trim().toLowerCase()}`;
+
+                let convertedItem = item.map(value =>
+                    (typeof value === "string" && value.includes(","))
+                        ? parseFloat(value.replace(/\./g, '').replace(',', '.'))
+                        : value
+                );
+
+                dataMap.set(key, convertedItem);
+            });
+
+            //console.log("🔍 Nội dung của dataMap:", Array.from(dataMap.entries()));
+
+            let errorRows = [];
+            let qualityErrors = [];
+            let missingIdRows = [];
+            let totalHieuSuat = 0;
+
+            // 🆕 Tạm thời bỏ "Độ khó" để test mapping
+            let requiredFields = ["Mã nhân sự", "Team", "Tên cơ chế", "Loại cơ chế", "Nhóm công việc", "Tên job"];
+
+            excelRows.forEach((row, index) => {
+                var tenCoChe = row["Tên cơ chế"] ? row["Tên cơ chế"].trim() : "";
+
+                if (tenCoChe !== strCoChe) {
+                    errorRows.push(`Dòng ${index + 2} không khớp Tên cơ chế`);
+                }
+
+                requiredFields.forEach(field => {
+                    if (!row[field] || row[field].toString().trim() === "") {
+                        errorRows.push(`Dòng ${index + 2} thiếu dữ liệu ở cột '${field}'`);
+                    }
+                });
+
+                if (!row["Chất lượng hoàn thành"] || row["Chất lượng hoàn thành"].toString().trim() === "") {
+                    qualityErrors.push(index + 2);
+                }
+            });
+
+            if (errorRows.length > 0) {
+                Swal.fire("Lỗi dữ liệu", `⚠️ Vui lòng kiểm tra lại:\n${errorRows.join("\n")}`, "error");
+                spinnerModal.hide();
+                return;
+            }
+            //console.log("🔍 Excel Row 0", excelRows);
+            let nhanSuErrors = [];
+
+            if (!pg_general_3_cachedDSNS || pg_general_3_cachedDSNS.length === 0) {
+                Swal.fire("Lỗi", "⚠️ Không có danh sách nhân sự để kiểm tra!", "error");
+                spinnerModal.hide();
+                return;
+            }
+
+            //let dsNhanSuSet = new Set(pg_general_3_cachedDSNS.map(item => item[0].trim()));
+            //let dsNhanSuSet = new Set(pg_general_3_cachedDSNS.map(item => (item?.maNhanSu || "").trim()));
+            let dsNhanSuSet = new Set(pg_general_3_cachedDSNS.map(item => item.trim()));
+
+
+            //console.log("🔍 Excel Row 1", excelRows);
+
+            excelRows.forEach((row, index) => {
+                //console.log(`Dòng ${index + 2}: Giá trị Mã nhân sự -`, row["Mã nhân sự"]);
+
+                let maNhanSu = row["Mã nhân sự"] ? String(row["Mã nhân sự"]).trim() : "";
+
+                if (!dsNhanSuSet.has(maNhanSu)) {
+                    nhanSuErrors.push(`Dòng ${index + 2}: Mã nhân sự ${maNhanSu} không tồn tại`);
+                }
+            });
+
+            //console.log("🔍 Excel Row 2", excelRows);
+            if (nhanSuErrors.length > 0) {
+                Swal.fire("Lỗi", `⚠️ Một số mã nhân sự chưa có trong cơ chế nghiệm thu:\n${nhanSuErrors.join("\n")}`, "error");
+                spinnerModal.hide();
+                return;
+            }
+
+
+            function continueProcessing() {
+                let processedData = [];
+
+                excelRows.forEach((row, index) => {
+                    //var key = `${row["Tên job"]?.trim()}|${(row["Chất lượng hoàn thành"] || "").toString().trim()}|${(row["Độ khó"] || "").toString().trim()}|${row["Nhóm công việc"]?.trim()}`;
+                    // Create lookup key with lowercase values
+                    var key = `${(row["Tên job"] || "").trim().toLowerCase()}|${(row["Chất lượng hoàn thành"] || "").trim().toLowerCase()}|${(row["Độ khó"] || "").trim().toLowerCase()}|${(row["Nhóm công việc"] || "").trim().toLowerCase()}`;
+
+                    //console.log(`🔑 Key tìm kiếm dòng ${index + 2}: [${key}]`);
+
+                    var matchedData = dataMap.get(key);
+
+                    //console.log(`🔑 Key tìm kiếm: ${key}`);
+                    //console.log("🔎 matchedData:", matchedData);
+
+                    var idJob = matchedData ? matchedData[0] : "Không có ID job";
+                    var unitPrice = matchedData ? parseFloat(matchedData[11]) || 0 : 0;
+                    var khoiLuongQuyDoi = matchedData ? parseFloat(matchedData[10]) || 0 : 0;
+
+                    if (idJob === "Không có ID job") {
+                        missingIdRows.push(`Dòng ${index + 2} không tìm thấy ID job.`);
+                    }
+
+                    var soLuong = parseSafeNumber(row["Số lượng"]) || 1;
+                    var tyLeThamGia = parsePercentageRate(row["Tỷ lệ tham gia"]);
+                    var tyLeHuongHieuSuat = parsePercentageRate(row["Tỷ lệ hưởng hiệu suất"]);
+
+                    var hieuSuat = unitPrice * soLuong * tyLeThamGia * tyLeHuongHieuSuat;
+                    totalHieuSuat += hieuSuat;
+
+                    // Log các dòng có ít nhất một cột tỷ lệ không trống
+                    if (row["Số lượng"] || row["Tỷ lệ tham gia"] || row["Tỷ lệ hưởng hiệu suất"]) {
+                        //console.log(`📊 Dòng ${index + 2} - ${row["Họ và tên"] || "N/A"}:`);
+                        //console.log(`   Số lượng: "${row["Số lượng"]}" → ${soLuong}`);
+                        //console.log(`   Tỷ lệ tham gia: "${row["Tỷ lệ tham gia"]}" → ${tyLeThamGia}`);
+                        //console.log(`   Tỷ lệ hưởng: "${row["Tỷ lệ hưởng hiệu suất"]}" → ${tyLeHuongHieuSuat}`);
+                        //console.log(`   Đơn giá: ${unitPrice}`);
+                        //console.log(`   ➡️ Hiệu suất = ${unitPrice} × ${soLuong} × ${tyLeThamGia} × ${tyLeHuongHieuSuat} = ${hieuSuat}`);
+                        //console.log(`---`);
+                    }
+
+                    processedData.push({
+                        index: index + 1, row, idJob, unitPrice, khoiLuongQuyDoi, soLuong, tyLeThamGia, tyLeHuongHieuSuat, hieuSuat
+                    });
+                });
+
+                if (missingIdRows.length > 0) {
+                    let errorLines = missingIdRows.map(row => row.match(/\d+/)[0]);
+                    Swal.fire("Lỗi", `⚠️ Không tìm thấy ID Job ở các dòng do sai thông tin Nhóm công việc, Tên job, Độ khó hoặc Chất lượng hoàn thành so với Khung: ${[...new Set(errorLines)].join(", ")}`, "error");
+                    spinnerModal.hide();
+                    return;
+                }
+
+                var totalContainer = document.createElement("div");
+                totalContainer.innerHTML = `<strong>🔹 Tổng hiệu suất: ${totalHieuSuat.toLocaleString("vi-VN")}</strong>`;
+                totalContainer.className = "fs-5 text-danger mb-3";
+
+                var dvExcelElement = document.getElementById("dvExcel");
+                if (!dvExcelElement) {
+                    console.error("Element dvExcel không tồn tại khi thêm totalContainer!");
+                    spinnerModal.hide();
+                    return;
+                }
+                dvExcelElement.appendChild(totalContainer);
+
+                var headerRow = table.insertRow(-1);
+                headers.forEach(header => {
+                    var th = document.createElement("th");
+                    th.innerHTML = header;
+                    // Căn lề phải cho các cột số
+                    const numericColumns = ["Số lượng", "Khối lượng công việc", "Tỷ lệ tham gia", "Tỷ lệ hưởng hiệu suất", "Đơn giá", "Hiệu suất"];
+                    if (numericColumns.includes(header)) {
+                        th.style.textAlign = "right";
+                    }
+                    // 🆕 Đánh dấu cột mở rộng bằng màu khác
+                    if (header.startsWith("Mở rộng")) {
+                        th.style.backgroundColor = "#fff3cd";
+                        th.style.fontWeight = "bold";
+                    }
+                    headerRow.appendChild(th);
+                });
+
+                processedData.forEach((dataItem, idx) => {
+                    var dataRow = table.insertRow(-1);
+                    headers.forEach(header => {
+                        var cell = dataRow.insertCell(-1);
+                        // Căn lề phải cho các cột số
+                        const numericColumns = ["Số lượng", "Khối lượng công việc", "Tỷ lệ tham gia", "Tỷ lệ hưởng hiệu suất", "Đơn giá", "Hiệu suất"];
+                        if (numericColumns.includes(header)) {
+                            cell.style.textAlign = "right";
+                        }
+
+                        if (header === "STT") cell.innerHTML = idx + 1;
+                        else if (header === "ID Job") cell.innerHTML = dataItem.idJob;
+                        else if (header === "Đơn giá") cell.innerHTML = dataItem.unitPrice.toLocaleString("vi-VN");
+                        else if (header === "Hiệu suất") cell.innerHTML = dataItem.hieuSuat.toLocaleString("vi-VN");
+                        else if (header === "Khối lượng công việc") cell.innerHTML = dataItem.khoiLuongQuyDoi.toLocaleString("vi-VN");
+                        else if (header === "Số lượng") {
+                            // Hiển thị số lượng với định dạng châu Âu (dấu , cho thập phân)
+                            cell.innerHTML = dataItem.soLuong.toLocaleString("vi-VN");
+                        }
+                        else if (header === "Tỷ lệ tham gia") {
+                            // Hiển thị dạng % (nhân 100 và thêm ký hiệu %)
+                            cell.innerHTML = (dataItem.tyLeThamGia * 100).toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + "%";
+                        }
+                        else if (header === "Tỷ lệ hưởng hiệu suất") {
+                            // Hiển thị dạng % (nhân 100 và thêm ký hiệu %)
+                            cell.innerHTML = (dataItem.tyLeHuongHieuSuat * 100).toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + "%";
+                        }
+                        // 🆕 Hiển thị dữ liệu cột mở rộng
+                        else if (header.startsWith("Mở rộng")) {
+                            // Lấy trực tiếp từ row object (vì đã map sẵn khi chuyển đổi raw data)
+                            cell.innerHTML = dataItem.row[header] || "";
+                            cell.style.backgroundColor = "#fffbf0";
+                        }
+                        else cell.innerHTML = dataItem.row[header] || "";
+                    });
+                });
+
+                var dvExcelElement = document.getElementById("dvExcel");
+                if (!dvExcelElement) {
+                    console.error("Element dvExcel không tồn tại khi thêm table!");
+                    spinnerModal.hide();
+                    return;
+                }
+                dvExcelElement.appendChild(table);
+                document.getElementById("modal_UpDataChiTiet_2_status").value = "non-save"
+
+                // Hiển thị nút "Tải xuống Excel" sau khi load dữ liệu thành công
+                const downloadExcelBtn = document.getElementById('downloadExcel');
+                if (downloadExcelBtn) {
+                    downloadExcelBtn.style.display = 'inline-block';
+                }
+
+                Swal.fire("Thành công", `🎉 Dữ liệu đã được xử lý hoàn tất! Tổng hiệu suất: ${totalHieuSuat.toLocaleString("vi-VN")}`, "success");
+
+                spinnerModal.hide();
+            }
+
+            if (qualityErrors.length > 0) {
+                Swal.fire({
+                    title: "Thiếu thông tin 'Chất lượng hoàn thành'",
+                    html: `⚠️ Một số dòng thiếu thông tin: ${qualityErrors.join(", ")}.<br><strong>Bạn có muốn tiếp tục upload không?</strong>`,
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonText: "Tiếp tục",
+                    cancelButtonText: "Hủy bỏ"
+                }).then((result) => {
+                    if (!result.isConfirmed) {
+                        spinnerModal.hide();
+                        return;
+                    }
+                    continueProcessing();
+                });
+            } else {
+                continueProcessing();
+            }
+        }).pg_general_1_KhungCoChe(strCoChe, strKyNghiemThu);
+    }
+
+    /**
+     * Hàm parse tỷ lệ phần trăm chuyên dụng cho cột Tỷ lệ tham gia và Tỷ lệ hưởng hiệu suất
+     * @param {*} value - Giá trị cần parse (có thể là: 0.66, 66%, 0,66, "0.66", "66%", etc.)
+     * @returns {number} - Số thập phân (0.66 cho 66%, 1 cho 100% hoặc giá trị rỗng)
+     */
+    function parsePercentageRate(value) {
+        //console.log(`🔍 parsePercentageRate input:`, value, `Type: ${typeof value}`);
+
+        // Nếu rỗng hoặc undefined → mặc định 1 (100%)
+        if (value === null || value === undefined || value === "") {
+            //console.log(`   → Rỗng, trả về 1`);
+            return 1;
+        }
+
+        // Nếu đã là số → giữ nguyên (66 → 66, 0.66 → 0.66)
+        if (typeof value === 'number') {
+            //console.log(`   → Số thuần, giữ nguyên: ${value}`);
+            return value;
+        }
+
+        // Chuyển thành string để xử lý
+        let str = value.toString().trim();
+
+        if (str === "") {
+            //console.log(`   → String rỗng, trả về 1`);
+            return 1;
+        }
+
+        // Kiểm tra có ký tự %
+        let hasPercent = str.includes('%');
+        str = str.replace(/%/g, '').trim();
+
+        // Parse số (xử lý cả dấu , và .)
+        let num = parseSafeNumber(str);
+        //console.log(`   → parseSafeNumber("${str}") = ${num}, hasPercent: ${hasPercent}`);
+
+        // CHỈ chia cho 100 khi có ký tự %
+        if (hasPercent) {
+            num = num / 100;
+            //console.log(`   → Có %, chia 100: ${num}`);
+        } else {
+            //console.log(`   → Không có %, giữ nguyên: ${num}`);
+        }
+
+        // Kiểm tra kết quả hợp lệ
+        if (isNaN(num)) {
+            //console.log(`   ⚠️ NaN, trả về 1`);
+            return 1;
+        }
+
+        //console.log(`   ✅ Kết quả: ${num}`);
+        return num;
+    }
+
+    /**
+     * Hàm parse số an toàn, xử lý cả định dạng châu Âu (1.234,56) và Mỹ (1,234.56)
+     * @param {*} value - Giá trị cần parse
+     * @returns {number} - Số đã parse hoặc 0 nếu không hợp lệ
+     */
+    function parseSafeNumber(value) {
+        if (!value && value !== 0) return 0;
+        if (typeof value === 'number') return value;
+
+        let str = value.toString().trim();
+        if (str === '') return 0;
+
+        // Đếm số lượng dấu chấm và phẩy
+        const dotCount = (str.match(/\./g) || []).length;
+        const commaCount = (str.match(/,/g) || []).length;
+
+        // Nếu không có dấu gì, parse trực tiếp
+        if (dotCount === 0 && commaCount === 0) {
+            return parseFloat(str) || 0;
+        }
+
+        // Nếu chỉ có 1 dấu phẩy và không có dấu chấm -> dấu phẩy là thập phân
+        // VD: 23,5 -> 23.5
+        if (commaCount === 1 && dotCount === 0) {
+            return parseFloat(str.replace(',', '.')) || 0;
+        }
+
+        // Nếu chỉ có 1 dấu chấm và không có dấu phẩy
+        // Kiểm tra vị trí: nếu có 3 chữ số sau dấu chấm cuối -> ngăn cách hàng nghìn
+        // VD: 1.234 -> 1234, nhưng 12.5 -> 12.5
+        if (dotCount === 1 && commaCount === 0) {
+            const parts = str.split('.');
+            if (parts[1] && parts[1].length === 3 && parts[0].length <= 3) {
+                // Có thể là ngăn cách hàng nghìn: 1.234
+                return parseFloat(str.replace('.', '')) || 0;
+            }
+            // Ngược lại là thập phân
+            return parseFloat(str) || 0;
+        }
+
+        // Nếu có cả dấu chấm và phẩy
+        // Xác định dấu nào xuất hiện sau -> đó là dấu thập phân
+        const lastDotPos = str.lastIndexOf('.');
+        const lastCommaPos = str.lastIndexOf(',');
+
+        if (lastCommaPos > lastDotPos) {
+            // Dấu phẩy là thập phân, dấu chấm là ngăn cách hàng nghìn
+            // VD: 1.234,56 -> 1234.56
+            return parseFloat(str.replace(/\./g, '').replace(',', '.')) || 0;
+        } else {
+            // Dấu chấm là thập phân, dấu phẩy là ngăn cách hàng nghìn
+            // VD: 1,234.56 -> 1234.56
+            return parseFloat(str.replace(/,/g, '')) || 0;
+        }
+    }
+
+    function formatPercentage(value) {
+        //console.log(`🔍 formatPercentage RAW input:`, value, `Type: ${typeof value}`);
+
+        // Kiểm tra null/undefined nhưng cho phép 0
+        if (value === null || value === undefined) return 1;
+        if (value.toString().trim() === "") return 1;
+
+        let str = value.toString().trim();
+        let isPercentage = str.includes('%');
+
+        //console.log(`🔍 formatPercentage input: "${value}" → str: "${str}", isPercentage: ${isPercentage}`);
+
+        // Loại bỏ ký tự %
+        str = str.replace(/%/g, '');
+
+        // Sử dụng lại hàm parseSafeNumber đã có
+        let num = parseSafeNumber(str);
+        //console.log(`   parseSafeNumber("${str}") → ${num}`);
+
+        // Nếu có %, chia cho 100
+        if (isPercentage) {
+            num = num / 100;
+            //console.log(`   Có % → chia 100 → ${num}`);
+        }
+
+        // QUAN TRỌNG: Chỉ return 1 nếu là NaN, KHÔNG dùng || 1 vì sẽ convert 0 thành 1
+        let result = parseFloat(num.toFixed(4));
+        if (isNaN(result)) {
+            //console.log(`   ⚠️ NaN detected, returning default 1`);
+            return 1;
+        }
+
+        //console.log(`   ✅ Kết quả cuối: ${result}`);
+        return result;
+    }
+
+    function modal_UpDataChiTiet_3_ImportData() {
+        // Kiểm tra nếu bảng dữ liệu đã tồn tại
+        var table = document.querySelector("#dvExcel table");
+        if (!table) {
+            alert("Bảng dữ liệu chưa được tạo! Vui lòng tải file Excel lên trước.");
+            return;
+        }
+
+        // Thu thập dữ liệu từ bảng
+        var data = modal_UpDataChiTiet_3_GetDataFromTable();
+        if (data.length === 0) {
+            alert("Bảng không có dữ liệu để nhập!");
+            return;
+        }
+
+        // Lấy giá trị từ các dropdown
+        var strKyNghiemThu = document.getElementById('modal_UpDataChiTiet_2_kyNghiemThuDropDown').value;
+        var strCoChe = document.getElementById('modal_UpDataChiTiet_2_coCheUpload_DropList').value;
+        var strKhoi = document.getElementById('modal_UpDataChiTiet_2_khoiDropList').value;
+
+        if (!strKyNghiemThu) {
+            alert("Bạn chưa chọn kỳ nghiệm thu.");
+            return;
+        }
+        if (!strKhoi) {
+            alert("Bạn chưa chọn khối.");
+            return;
+        }
+        if (!strCoChe) {
+            alert("Bạn chưa chọn cơ chế.");
+            return;
+        }
+
+        // Kiểm tra dữ liệu tồn tại
+        $('#spinnerModal').modal('show');
+        google.script.run
+            .withSuccessHandler(function (exists) {
+                $('#spinnerModal').modal('hide');
+                if (exists) {
+                    Swal.fire({
+                        title: 'Dữ liệu đã tồn tại',
+                        html: `Tháng <strong>${strKyNghiemThu}</strong> đã có dữ liệu.<br>Bạn có muốn tiếp tục lưu (ghi chèn) không?`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Tiếp tục lưu',
+                        cancelButtonText: 'Hủy'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            modal_UpDataChiTiet_3_sendDataToServer(data, strCoChe, strKyNghiemThu, strKhoi);
+                        }
+                    });
+                } else {
+                    modal_UpDataChiTiet_3_sendDataToServer(data, strCoChe, strKyNghiemThu, strKhoi);
+                }
+            })
+            .withFailureHandler(function (err) {
+                $('#spinnerModal').modal('hide');
+                console.error(err);
+                // Vẫn cho lưu nếu check lỗi (fail-safe)
+                modal_UpDataChiTiet_3_sendDataToServer(data, strCoChe, strKyNghiemThu, strKhoi);
+            })
+            .modal_UpDataChiTiet_1_CheckDataExist(strCoChe, strKyNghiemThu);
+    }
+
+    function pg_uploadHieuSuat_Reset() {
+        const statusElement = document.getElementById('modal_UpDataChiTiet_2_status');
+        if (!statusElement) return;
+
+        if (statusElement.value === "non-save") {
+            Swal.fire({
+                title: "Bạn có chắc muốn đóng màn hình upload hiệu suất?",
+                text: "Dữ liệu chưa được lưu, bạn có muốn tiếp tục?",
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonText: "Tiếp tục đóng!",
+                cancelButtonText: "Ở lại màn hình này"
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    modal_UpDataChiTiet_3_resetModalContent();
+                }
+            });
+        } else {
+            modal_UpDataChiTiet_3_resetModalContent();
+        }
+    }
+
+    function modal_UpDataChiTiet_3_resetModalContent() {
+        document.getElementById('modal_UpDataChiTiet_2_kyNghiemThuDropDown').value = "";
+        document.getElementById('modal_UpDataChiTiet_2_coCheUpload_DropList').value = "";
+        document.getElementById('modal_UpDataChiTiet_2_khoiDropList').value = "";
+        document.getElementById('modal_UpDataChiTiet_2_status').value = "new";
+
+        // Ẩn nút "Tải xuống Excel"
+        const downloadExcelBtn = document.getElementById('downloadExcel');
+        if (downloadExcelBtn) {
+            downloadExcelBtn.style.display = 'none';
+        }
+
+        $('#uploadHieuSuat_Modal').modal('hide'); // Đóng modal đúng cách
+        //$('.modal-backdrop').remove(); // Xóa nền mờ
+
+        const table = document.getElementById('dvExcel');
+        if (!table) {
+            console.warn("Element dvExcel không tồn tại trong modal_UpDataChiTiet_3_resetModalContent");
+            return;
+        }
+
+        const rows = table.getElementsByTagName('tr');
+
+        // Xóa cột lỗi nếu có
+        if (rows.length > 0) {
+            const headerRow = rows[0];
+            const lastCell = headerRow.cells[headerRow.cells.length - 1];
+
+            if (lastCell && lastCell.textContent.includes("Lỗi")) {
+                for (let i = 0; i < rows.length; i++) {
+                    if (rows[i].cells.length > 0) {
+                        rows[i].deleteCell(-1); // Xóa cột cuối cùng
+                    }
+                }
+            }
+        }
+
+        // Xóa toàn bộ nội dung bảng (chỉ giữ lại phần `thead`, nếu có)
+        table.innerHTML = "";
+
+        // Ẩn nút tải danh sách lỗi nếu có
+        const downloadBtn = document.getElementById('downloadErrorBtn');
+        if (downloadBtn) {
+            downloadBtn.remove();
+        }
+    }
+
+
+    function pg_uploadHieuSuat_taoLaiBang() {
+        const table = document.getElementById('dvExcel');
+        if (!table) {
+            console.warn("Element dvExcel không tồn tại trong pg_uploadHieuSuat_taoLaiBang");
+            return;
+        }
+
+        const rows = table.getElementsByTagName('tr');
+
+        // Xóa cột lỗi nếu có
+        if (rows.length > 0) {
+            const headerRow = rows[0];
+            if (headerRow.cells.length > 0 && headerRow.cells[headerRow.cells.length - 1].textContent.includes("Lỗi")) {
+                for (let row of rows) {
+                    row.deleteCell(-1); // Xóa cột cuối cùng
+                }
+            }
+        }
+
+        // Ẩn nút tải danh sách lỗi nếu có
+        const downloadBtn = document.getElementById('downloadErrorBtn');
+        if (downloadBtn) {
+            downloadBtn.remove();
+        }
+    }
+
+    function modal_UpDataChiTiet_3_sendDataToServer(data, strCoChe, strKyNghiemThu, strKhoi) {
+        // Hiển thị spinner modal khi quá trình tải dữ liệu bắt đầu
+        $('#spinnerModal').modal('show');
+
+        // Gửi dữ liệu tới server
+        google.script.run
+            .withSuccessHandler(function (strReturnServerUpload) {
+                // Ẩn spinner modal khi quá trình xử lý xong
+                $('#spinnerModal').modal('hide');
+
+                if (strReturnServerUpload === 'Success') {
+                    var dvExcelElement = document.getElementById("dvExcel");
+                    if (dvExcelElement) {
+                        dvExcelElement.innerHTML = ""; // Xóa bảng sau khi nhập xong
+                    }
+
+                    // Cập nhật các dropdown trên màn hình chính (nếu tồn tại)
+                    var khoiDropList = document.getElementById('khoi_DropList');
+                    var coCheDropList = document.getElementById('coChe_DropList');
+                    var tuThangDropList = document.getElementById('tuThang_DropList');
+                    var denThangDropList = document.getElementById('denThang_DropList');
+
+                    if (khoiDropList) khoiDropList.value = strKhoi;
+                    if (coCheDropList) coCheDropList.value = strCoChe;
+                    if (tuThangDropList) tuThangDropList.value = strKyNghiemThu;
+                    if (denThangDropList) denThangDropList.value = strKyNghiemThu;
+
+                    // Gọi hàm xem hiệu suất chi tiết (nếu tồn tại)
+                    if (typeof pg_general_3_XemHieuSuatChiTiet === 'function') {
+                        pg_general_3_XemHieuSuatChiTiet();
+                    }
+                    alert("Nhập dữ liệu thành công!");
+                    document.getElementById('modal_UpDataChiTiet_2_status').value = "new";
+                } else {
+                    // Hiển thị thông báo và xử lý lỗi
+                    alert("Có lỗi xảy ra trong quá trình nhập. Vui lòng kiểm tra bảng chi tiết lỗi.");
+                    populateErrorsOnTable(strReturnServerUpload);
+                }
+            })
+            .withFailureHandler(function (error) {
+                // Ẩn spinner modal khi có lỗi
+                $('#spinnerModal').modal('hide');
+                alert("Đã xảy ra lỗi khi gửi dữ liệu: " + error.message);
+            })
+            .modal_UpDataChiTiet_1_GhiDataHieuSuatVaoSheet(data, strCoChe, strKyNghiemThu, strKhoi);
+    }
+
+    // Hàm hiển thị lỗi vào bảng
+    function populateErrorsOnTable(errorDetails) {
+        const errors = errorDetails.split('\n'); // Giả sử lỗi được trả về cách nhau bởi dòng mới
+        const table = document.getElementById('dvExcel'); // Giả định bảng HTML có ID là 'dvExcel'
+
+        if (!table) {
+            console.error("Element dvExcel không tồn tại trong populateErrorsOnTable!");
+            alert("Đã xảy ra lỗi: " + errorDetails);
+            return;
+        }
+
+        const rows = table.getElementsByTagName('tr');
+
+        // Xóa các lỗi trước đó nếu đã có
+        while (rows[0]?.lastChild?.className === 'error-cell') {
+            for (let row of rows) row.deleteCell(-1);
+        }
+
+        // Chèn cột "Lỗi" vào header nếu chưa có
+        const headerRow = rows[0];
+        const firstError = errors.length > 0 ? errors[0] : "Lỗi"; // Lấy dòng đầu tiên của lỗi
+        let errorHeader;
+        if (!headerRow.cells[headerRow.cells.length - 1]?.textContent.includes("Lỗi")) {
+            errorHeader = headerRow.insertCell(-1);
+            errorHeader.style.fontWeight = 'bold';
+            errorHeader.style.color = 'red';
+        } else {
+            errorHeader = headerRow.cells[headerRow.cells.length - 1];
+        }
+        errorHeader.textContent = firstError;
+
+        // Chèn lỗi vào từng dòng
+        errors.forEach((error, index) => {
+            if (index === 0) return; // Bỏ qua lỗi đầu tiên (đã dùng làm tiêu đề)
+            if (rows[index]) { // Bắt đầu từ dòng thứ hai (không thêm tiêu đề)
+                const errorCell = rows[index].insertCell(-1);
+                errorCell.textContent = error;
+                errorCell.style.color = 'red'; // Tô màu đỏ cho lỗi
+                errorCell.className = 'error-cell'; // Gán class để nhận diện
+            }
+        });
+
+        // Hiển thị nút tải file Excel nếu chưa có
+        if (!document.getElementById('downloadErrorBtn')) {
+            const downloadBtn = document.createElement('button');
+            downloadBtn.id = 'downloadErrorBtn';
+            downloadBtn.textContent = "Tải danh sách lỗi";
+            downloadBtn.style.marginBottom = '10px';
+            downloadBtn.style.display = 'block';
+            downloadBtn.style.backgroundColor = '#dc3545'; // Màu đỏ
+            downloadBtn.style.color = 'white'; // Chữ trắng
+            downloadBtn.style.border = 'none'; // Loại bỏ viền
+            downloadBtn.style.padding = '10px 20px'; // Kích thước nút
+            downloadBtn.style.borderRadius = '5px'; // Bo tròn góc
+            downloadBtn.style.cursor = 'pointer'; // Thay đổi con trỏ
+            downloadBtn.style.fontSize = '16px'; // Tăng kích thước chữ
+            downloadBtn.style.fontWeight = 'bold'; // Chữ đậm
+            downloadBtn.style.textAlign = 'center';
+            downloadBtn.style.transition = 'background-color 0.3s'; // Hiệu ứng khi rê chuột
+
+            // Thêm hiệu ứng khi rê chuột
+            downloadBtn.onmouseover = function () {
+                downloadBtn.style.backgroundColor = '#c82333'; // Đậm hơn khi hover
+            };
+            downloadBtn.onmouseout = function () {
+                downloadBtn.style.backgroundColor = '#dc3545'; // Trở về màu gốc
+            };
+
+            downloadBtn.onclick = exportErrorsToExcel;
+            table.parentElement.insertBefore(downloadBtn, table); // Thêm nút ngay trên đầu bảng
+        }
+
+        // Tùy chọn: Xuất các lỗi thành file Excel
+        function exportErrorsToExcel() {
+            const filteredData = [];
+            const headerCells = ['Lỗi']; // Chỉ lấy tiêu đề cột lỗi
+            filteredData.push(headerCells); // Thêm tiêu đề "Lỗi"
+
+            for (let i = 1; i < rows.length; i++) { // Bỏ qua dòng tiêu đề
+                const errorCell = rows[i].cells[rows[i].cells.length - 1]; // Cột cuối cùng
+                if (errorCell && errorCell.textContent.trim() !== "") {
+                    const rowData = [errorCell.textContent]; // Chỉ lấy dữ liệu của cột Lỗi
+                    filteredData.push(rowData);
+                }
+            }
+
+            // Chuyển dữ liệu thành bảng Excel
+            const ws = XLSX.utils.aoa_to_sheet(filteredData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Errors");
+            XLSX.writeFile(wb, "Chi_Tiet_Loi_Upload.xlsx");
+        }
+    }
+
+    function modal_UpDataChiTiet_3_GetDataFromTable() {
+        var table = document.querySelector("#dvExcel table");
+        var rows = Array.from(table.rows);
+        var data = [];
+
+        // Danh sách các cột cần xử lý định dạng số (chỉ mục cột bắt đầu từ 1)
+        var columnsToFormat = [13, 14, 17, 18, 19];
+
+        // 🆕 Lấy danh sách headers để xác định cột mở rộng
+        var headerRow = rows[0];
+        var headers = Array.from(headerRow.cells).map(cell => cell.innerText.trim());
+
+        // 🆕 Tìm các cột "Mở rộng"
+        var expandColumnIndices = [];
+        headers.forEach((header, index) => {
+            if (header.startsWith("Mở rộng")) {
+                expandColumnIndices.push(index);
+            }
+        });
+
+        //console.log(`📋 Tìm thấy ${expandColumnIndices.length} cột mở rộng tại vị trí:`, expandColumnIndices);
+
+        // Duyệt qua các dòng trong bảng, bắt đầu từ dòng thứ 2 (bỏ qua header)
+        for (var i = 1; i < rows.length; i++) {
+            var row = rows[i];
+            var rowData = {};
+
+            // 🆕 Mảng lưu dữ liệu các cột mở rộng
+            var expandData = [];
+
+            // Duyệt qua các cột trong dòng
+            for (var j = 0; j < row.cells.length; j++) {
+                var header = headers[j];
+                var cellValue = row.cells[j].innerText.trim();
+
+                // 🆕 Nếu là cột mở rộng, lưu vào mảng expandData
+                if (header.startsWith("Mở rộng")) {
+                    expandData.push(cellValue);
+                    continue; // Bỏ qua, không lưu vào rowData
+                }
+
+                // Nếu là cột số, chuẩn hóa lại
+                if (columnsToFormat.includes(j + 1)) {
+                    // Loại bỏ toàn bộ dấu ngăn cách hàng nghìn
+                    cellValue = cellValue.replace(/\./g, "");
+
+                    // Chuyển dấu `,` thành `.`
+                    cellValue = cellValue.replace(/,/g, ".");
+
+                    // Ép kiểu về số thực (float)
+                    cellValue = parseFloat(cellValue);
+                }
+
+                rowData[header] = cellValue;
+            }
+
+            // 🆕 Gộp các cột mở rộng thành 1 chuỗi ngăn cách bằng ||
+            if (expandData.length > 0) {
+                rowData["Mở rộng"] = expandData.join("||");
+                //console.log(`📝 Dòng ${i}: Gộp ${expandData.length} cột mở rộng → "${rowData["Mở rộng"]}"`);
+            } else {
+                rowData["Mở rộng"] = ""; // Nếu không có cột mở rộng, để trống
+            }
+
+            // Kiểm tra nếu dòng có dữ liệu hợp lệ (không trống)
+            if (Object.values(rowData).some(value => value !== "")) {
+                data.push(rowData);
+            }
+        }
+
+        //console.log(`✅ Đã trích xuất ${data.length} dòng dữ liệu từ bảng`);
+        //console.log("Dữ liệu được trích xuất từ bảng:", JSON.stringify(data, null, 2));
+        return data;
+    }
+
+    /**NHÓM HÀM DÙNG CHUNG*/
+
+    // Lắng nghe sự kiện nhấn nút "Close" của modal và xóa input file
+    function modal_UpDataChiTiet_3_showModal() {
+        //document.getElementById("overlay").classList.remove("active");
+        var overlay = document.getElementById("overlay");
+        if (overlay) {
+            overlay.classList.remove("active");
+        }
+        //modal_UpDataChiTiet_3_taoDropDown_KyNghiemThu();
+        //modal_UpDataChiTiet_3_taoDropDown_Khoi();
+        //modal_UpDataChiTiet_3_taoDropDown_CoChe();
+
+        $('#uploadHieuSuat_Modal').modal('show');
+    }
+
+    function modal_UpDataChiTiet_3_showModal_FrKhung() {
+        $('#khungCoCheModal').modal('hide'); // Đóng modal trước đó (nếu có)
+
+        $('#khungCoCheModal').on('hidden.bs.modal', function () {
+            document.getElementById("overlay").classList.remove("active");
+            $('#uploadHieuSuat_Modal').modal('show'); // Mở modal mới sau khi modal cũ đã đóng hoàn toàn
+        });
+    }
+
+
+    $(document).ready(function () {
+        $('#myTable').DataTable({
+            autoWidth: false, // Tự động điều chỉnh chiều rộng
+        });
+    });
+
+    function pgHieuSuatUploadHtml_onFailure(error) {
+        $('#spinnerModal').modal('hide');
+        //console.log('Error: ' + error.message);
+        alert('Error: ' + error.message);
+    }
+
+
+    //Hàm tính hiệu suất
+    function pgHieuSuatUploadHtml_TinhHieuSuat() {
+        // Gọi Apps Script để lấy dữ liệu
+        var strCoChe = document.getElementById('modal_UpDataChiTiet_2_coCheUpload_DropList').value;
+        var range = "DatabaseKhung!A2:L"
+        google.script.run.withSuccessHandler(function (data) {
+            // Sau khi nhận được dữ liệu từ Apps Script, cập nhật bảng
+            pgHieuSuatUploadHtml_UpdateTable(data);
+        }).getDropdownList_KhungCoChe(strCoChe, range);
+    }
+
+    function pgHieuSuatUploadHtml_UpdateTable(data) {
+        //console.log("Data update table: ",data)
+        var table = document.querySelector("#dvExcel table");
+        var rows = Array.from(table.rows);
+
+        // Số thứ tự các cột
+        var tenJob_onKhung = 2; // Cột "Tên job" trong Khung
+        var doKho_onKhung = 3; // Cột "Tên job" trong Khung
+
+        var chatLuong_onKhung = 6; // Cột "Chất lượng" trong Khung
+        var donGia_onKhung = 8; // Cột "Đơn giá" trong Khung
+
+        var soLuong_onTable = 10; // Cột số lượng trên table
+        var tyLeThamGia_onTable = 12; // Cột tỷ lệ tham gia trên table
+
+        var hieuSuat_onTable = 14; // Cột để ghi kết quả (Hiệu suất) trên Table
+
+        // Tạo đối tượng định dạng
+        var formatter = new Intl.NumberFormat('vi-VN', {
+            style: 'decimal',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+
+        // Duyệt qua các dòng trong bảng, bắt đầu từ dòng thứ 2 (bỏ qua header)
+        for (var i = 1; i < rows.length; i++) {
+            var row = rows[i];
+            var tenJob_onTable = row.cells[5].innerText.trim(); // Cột "Tên job" trên table
+            var chatLuong_onTable = row.cells[13].innerText.trim(); // Cột "Chất lượng" trên table
+
+            // Tìm trong `data` với điều kiện tenJob_onTable trùng cột 2 và chatLuong_onTable trùng cột 5
+            var matchedData = data.find(item =>
+                item[tenJob_onKhung] === tenJob_onTable && item[chatLuong_onKhung] === chatLuong_onTable
+            );
+
+            // Lấy giá trị từ cột soLuong_onTable và tyLeThamGia_onTable
+            var soLuong_onServer = parseFloat(row.cells[soLuong_onTable].innerText.trim()) || 1; // Mặc định là 1 nếu không có giá trị
+            var tyLeThamGia_onServer = parseFloat(row.cells[tyLeThamGia_onTable].innerText.trim()) || 1; // Mặc định là 1 nếu không có giá trị
+
+            // Ghi kết quả vào cột hieuSuat_onTable
+            if (matchedData) {
+                //var donGia_ghiVaoTable = matchedData[donGia_onKhung]; // Giá trị từ cột 7 trong data
+                //row.cells[hieuSuat_onTable].innerText = donGia_ghiVaoTable; // Ghi vào cột "Hiệu suất"
+
+                var unitPrice = parseFloat(matchedData[donGia_onKhung]) || 0; // Giá trị từ cột 7 trong data
+                var finalValue = unitPrice * soLuong_onServer * tyLeThamGia_onServer; // Tính tổng
+                // Định dạng số
+                row.cells[hieuSuat_onTable].innerText = formatter.format(finalValue);
+                //row.cells[hieuSuat_onTable].innerText = finalValue.toFixed(2); // Ghi vào cột "Hiệu suất", làm tròn 2 chữ số
+            } else {
+                row.cells[hieuSuat_onTable].innerText = "Không tìm thấy đơn giá"; // Không tìm thấy
+            }
+        }
+    }
+
+    function pgHieuSuatUploadHtml_testPhanQuyen() {
+        var selectElement = document.getElementById('modal_UpDataChiTiet_2_coCheUpload_DropList');
+
+        if (!selectElement) {
+            alert("Không tìm thấy phần tử modal_UpDataChiTiet_2_coCheUpload_DropList!");
+            return;
+        }
+
+        var strCoChe = selectElement.value;
+
+        google.script.run
+            .withSuccessHandler(function (response) {
+                //console.log("Phản hồi từ Apps Script:", response);
+                alert("Phân quyền: " + response);
+            })
+            .withFailureHandler(function (error) {
+                console.error("Lỗi Apps Script:", error);
+                alert("Lỗi khi kiểm tra phân quyền: " + error);
+            })
+            .pg_general_1_LayChuoiPhanQuyen2(strCoChe);
+    }
+
+
+</script>
